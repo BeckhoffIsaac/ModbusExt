@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <GVL Name="GVL_MbConst" Id="{4a630ac1-f150-4db9-8328-e37f86fec926}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+VAR_GLOBAL CONSTANT
+	FC_READ_COILS      : USINT := 1;
+	FC_READ_DISCRETE   : USINT := 2;
+	FC_READ_HOLDING    : USINT := 3;
+	FC_READ_INPUT      : USINT := 4;
+	FC_WRITE_COIL      : USINT := 5;
+	FC_WRITE_REGISTER  : USINT := 6;
+	FC_WRITE_COILS     : USINT := 15;
+	FC_WRITE_REGISTERS : USINT := 16;
+	EXC_FLAG           : BYTE  := 16#80;
+	MAX_READ_REGS      : UINT  := 125;
+	MAX_WRITE_REGS     : UINT  := 123;
+	MAX_READ_COILS     : UINT  := 2000;
+	MAX_WRITE_COILS    : UINT  := 1968;
+END_VAR]]></Declaration>
+  </GVL>
+</TcPlcObject>

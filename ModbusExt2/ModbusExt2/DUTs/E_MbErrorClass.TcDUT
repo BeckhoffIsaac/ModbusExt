@@ -12,6 +12,7 @@ TYPE E_MbErrorClass :
 	Transport,
 	Config,
 	Truncated,
+	Malformed,
 	StillFailing,
 	Recovered
 );

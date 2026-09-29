@@ -1,0 +1,36 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="F_MbCrc16" Id="{55e0a3dc-a346-4d0e-8c9c-d61fa87e0971}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION F_MbCrc16 : WORD
+VAR_INPUT
+	pData : POINTER TO BYTE;
+	cbLen : UDINT;
+END_VAR
+VAR
+	i    : UDINT;
+	j    : USINT;
+	wCrc : WORD;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// Modbus RTU CRC-16: poly 16#A001 (reflected 16#8005), init 16#FFFF.
+// Wire order is low byte first: CRC 16#8776 is sent as 76 87.
+F_MbCrc16 := 16#FFFF;
+IF pData = 0 OR cbLen = 0 THEN
+	RETURN;
+END_IF
+
+wCrc := 16#FFFF;
+FOR i := 0 TO cbLen - 1 DO
+	wCrc := wCrc XOR BYTE_TO_WORD(pData[i]);
+	FOR j := 1 TO 8 DO
+		IF (wCrc AND 16#0001) <> 0 THEN
+			wCrc := SHR(wCrc, 1) XOR 16#A001;
+		ELSE
+			wCrc := SHR(wCrc, 1);
+		END_IF
+	END_FOR
+END_FOR
+F_MbCrc16 := wCrc;]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

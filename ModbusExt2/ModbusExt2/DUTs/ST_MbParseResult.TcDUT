@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_MbParseResult" Id="{4d1f6159-84ff-44e8-8a31-29cca1c7fa1b}">
+    <Declaration><![CDATA[TYPE ST_MbParseResult :
+STRUCT
+	bOk         : BOOL;             // Valid non-exception response matching the request
+	bException  : BOOL;
+	nExcCode    : BYTE;             // Modbus exception code when bException
+	eClass      : E_MbErrorClass;   // None | Exception | Truncated | Malformed
+	nByteCount  : UINT;             // Data bytes (FC 1..4)
+	nDataOffset : UINT;             // Index of first data byte within the PDU (FC 1..4)
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

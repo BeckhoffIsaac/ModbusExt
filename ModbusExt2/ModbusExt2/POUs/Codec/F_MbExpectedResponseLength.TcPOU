@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="F_MbExpectedResponseLength" Id="{e2337f90-aa96-4802-8191-50ceeac9ead2}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION F_MbExpectedResponseLength : UINT
+VAR_INPUT
+	nFc  : USINT;
+	nQty : UINT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>
