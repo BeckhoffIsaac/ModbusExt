@@ -469,6 +469,9 @@ aState[i].eLastClass  := E_MbErrorClass.None;
 aState[i].nLastExc    := 0;
 aState[i].nWriteState := 0;
 
+IF NOT bOk THEN
+	aState[i].nCount := 0;   // Failed points occupy no range; keeps them out of the overlap check
+END_IF
 ResolvePoint := bOk;]]></ST>
       </Implementation>
     </Method>
