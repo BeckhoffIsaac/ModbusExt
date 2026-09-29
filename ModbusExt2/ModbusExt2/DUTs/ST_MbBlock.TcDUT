@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_MbBlock" Id="{269cfe56-2a94-4f8f-a9f5-9528876d9aab}">
+    <Declaration><![CDATA[TYPE ST_MbBlock :
+STRUCT
+	eRegion      : E_MbRegion;
+	nOffset      : UINT;       // 0-based start address
+	nCount       : UINT;       // Registers or coils
+	nFc          : USINT;      // Read function code
+	ePoll        : E_MbPoll;
+	nSortedFirst : UINT;       // Index range into FB_ModbusDevice.aSorted
+	nSortedCount : UINT;
+	tLastPoll    : ULINT;      // FILETIME of last completed poll (Slow scheduling)
+	nConsecFail  : UINT;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

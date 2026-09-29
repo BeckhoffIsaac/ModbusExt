@@ -1,0 +1,65 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="PRG_CodecTest" Id="{4138619a-9fdd-4080-80b9-2e65da991e0c}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM PRG_CodecTest
+VAR
+	bRun            : BOOL := TRUE;     // Set TRUE online to re-run
+	bAllPass        : BOOL;
+
+	bCrcPass        : BOOL;
+	bBuildPass      : BOOL;
+	bParsePass      : BOOL;
+	bExceptionPass  : BOOL;
+	bMalformedPass  : BOOL;
+	bTruncatedPass  : BOOL;
+
+	wCrc            : WORD;
+	nLen            : UINT;
+	bOk             : BOOL;
+	stRes           : ST_MbParseResult;
+	aPdu            : ARRAY[0..259] OF BYTE;
+
+	// Spec example: read 3 holding registers from unit 16#11 starting at 40108
+	aFrame          : ARRAY[0..5] OF BYTE := [16#11, 16#03, 16#00, 16#6B, 16#00, 16#03];
+	aResp           : ARRAY[0..7] OF BYTE := [16#03, 16#06, 16#AE, 16#41, 16#56, 16#52, 16#43, 16#40];
+	aExc            : ARRAY[0..1] OF BYTE := [16#83, 16#02];
+	aBad            : ARRAY[0..7] OF BYTE := [16#03, 16#04, 16#AE, 16#41, 16#56, 16#52, 16#43, 16#40];
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF NOT bRun THEN
+	RETURN;
+END_IF
+bRun := FALSE;
+
+// 1. CRC over 11 03 00 6B 00 03 -> 16#8776 (wire order 76 87)
+wCrc := F_MbCrc16(ADR(aFrame), SIZEOF(aFrame));
+bCrcPass := (wCrc = 16#8776);
+
+// 2. Build FC3, offset 16#6B, qty 3 -> 03 00 6B 00 03
+MEMSET(ADR(aPdu), 0, SIZEOF(aPdu));
+nLen := F_MbBuildRequest(GVL_MbConst.FC_READ_HOLDING, 16#6B, 3, 0, 0, ADR(aPdu), SIZEOF(aPdu));
+bBuildPass := (nLen = 5) AND (aPdu[0] = 16#03) AND (aPdu[1] = 16#00) AND (aPdu[2] = 16#6B)
+              AND (aPdu[3] = 16#00) AND (aPdu[4] = 16#03);
+
+// 3. Good FC3 response, 3 registers
+bOk := F_MbParseResponse(ADR(aResp), SIZEOF(aResp), GVL_MbConst.FC_READ_HOLDING, 3, stRes);
+bParsePass := bOk AND stRes.bOk AND (stRes.nByteCount = 6) AND (stRes.nDataOffset = 2)
+              AND (stRes.eClass = E_MbErrorClass.None);
+
+// 4. Exception 83 02
+bOk := F_MbParseResponse(ADR(aExc), SIZEOF(aExc), GVL_MbConst.FC_READ_HOLDING, 3, stRes);
+bExceptionPass := (NOT bOk) AND stRes.bException AND (stRes.nExcCode = 2)
+                  AND (stRes.eClass = E_MbErrorClass.Exception);
+
+// 5. Byte count disagrees with quantity
+bOk := F_MbParseResponse(ADR(aBad), SIZEOF(aBad), GVL_MbConst.FC_READ_HOLDING, 3, stRes);
+bMalformedPass := (NOT bOk) AND (stRes.eClass = E_MbErrorClass.Malformed);
+
+// 6. Short frame
+bOk := F_MbParseResponse(ADR(aResp), 4, GVL_MbConst.FC_READ_HOLDING, 3, stRes);
+bTruncatedPass := (NOT bOk) AND (stRes.eClass = E_MbErrorClass.Truncated);
+
+bAllPass := bCrcPass AND bBuildPass AND bParsePass AND bExceptionPass AND bMalformedPass AND bTruncatedPass;]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

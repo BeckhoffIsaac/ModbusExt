@@ -1,0 +1,25 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_MbPointState" Id="{4878d463-f059-4d99-a0b0-a5112b384fbe}">
+    <Declaration><![CDATA[TYPE ST_MbPointState :
+STRUCT
+	pPoint      : POINTER TO ST_MbPoint;   // Re-established in FB_reinit
+	sName       : STRING(GVL_MbParam.MB_NAME_LEN);
+	eRegion     : E_MbRegion;              // Resolved
+	nOffset     : UINT;                    // Resolved 0-based address
+	nCount      : UINT;                    // Registers or coils occupied
+	eType       : E_MbType;                // Resolved (Auto replaced)
+	eWordOrder  : E_MbWordOrder;           // Resolved (Inherit replaced)
+	nReadFc     : USINT;
+	nWriteFc    : USINT;                   // 0 = not writable
+	nBlock      : UINT;                    // Owning read block; MB_MAX_BLOCKS = none (Poll Off)
+	bFailing    : BOOL;
+	nRepeat     : UDINT;
+	tLastLog    : ULINT;
+	eLastClass  : E_MbErrorClass;
+	nLastExc    : BYTE;
+	nWriteState : USINT;                   // 0 idle, 1 queued, 2 in flight
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

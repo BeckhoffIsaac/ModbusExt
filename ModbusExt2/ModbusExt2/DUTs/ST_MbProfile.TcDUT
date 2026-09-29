@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_MbProfile" Id="{8d3ee307-0db4-46fa-9685-9f2fd98bd8a4}">
+    <Declaration><![CDATA[TYPE ST_MbProfile :
+STRUCT
+	sModel          : STRING(GVL_MbParam.MB_NAME_LEN);
+	eWordOrder      : E_MbWordOrder  := E_MbWordOrder.ABCD;
+	eAddressing     : E_MbAddressing := E_MbAddressing.Modicon;
+	nMaxRegsPerRead : UINT := GVL_MbConst.MAX_READ_REGS;
+	nMaxGap         : UINT := 8;
+	bFc6Only        : BOOL;
+	bFc16Only       : BOOL;
+	bStringByteSwap : BOOL;
+	tSlowPoll       : TIME := T#5S;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

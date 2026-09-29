@@ -1,0 +1,64 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <Itf Name="I_MbTransport" Id="{5e2641e3-5baf-4f56-8acb-08ba34d5721e}">
+    <Declaration><![CDATA[INTERFACE I_MbTransport
+]]></Declaration>
+    <Method Name="Abort" Id="{a2414c33-193c-497e-91ff-055b80211172}">
+      <Declaration><![CDATA[METHOD Abort
+VAR_INPUT
+	nUnitId : USINT;
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="Acquire" Id="{e8b6dc96-6c1b-4695-bdcc-5ed702abeade}">
+      <Declaration><![CDATA[METHOD Acquire : BOOL
+VAR_INPUT
+	nUnitId : USINT;   // Caller's unit ID doubles as the owner key. TRUE = you hold the bus.
+END_VAR]]></Declaration>
+    </Method>
+    <Property Name="bReady" Id="{f1f3f453-f257-4808-a9e5-352f0af6b022}">
+      <Declaration><![CDATA[PROPERTY bReady : BOOL]]></Declaration>
+      <Get Name="Get" Id="{7603ea32-7a8f-42e5-a6d3-5c31ca8e950d}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+    </Property>
+    <Property Name="eLastError" Id="{12e97a06-a77c-47e6-8562-6ee6ecbb97d0}">
+      <Declaration><![CDATA[PROPERTY eLastError : E_MbErrorClass]]></Declaration>
+      <Get Name="Get" Id="{4e997a8d-5f67-4e7a-ac76-cb450b3b1cbf}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+    </Property>
+    <Method Name="Poll" Id="{80eb6a04-8139-4b76-bdf6-a69ed141e4ca}">
+      <Declaration><![CDATA[METHOD Poll : E_MbXferState]]></Declaration>
+    </Method>
+    <Property Name="pResponsePdu" Id="{e153f7db-31a4-4089-88ee-fdf20448a932}">
+      <Declaration><![CDATA[PROPERTY pResponsePdu : POINTER TO BYTE]]></Declaration>
+      <Get Name="Get" Id="{81eb4523-6382-477e-8df0-67db6671c07d}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+    </Property>
+    <Property Name="PropcbResponsePdu" Id="{814f7d24-46a3-4272-9512-7c132007175c}">
+      <Declaration><![CDATA[PROPERTY PropcbResponsePdu : UINT]]></Declaration>
+      <Get Name="Get" Id="{e18db762-d5ce-4f7a-aa92-8e2ae1e693e7}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+    </Property>
+    <Method Name="Release" Id="{a55f0abe-f856-45ff-bf30-7d1d38b9d74e}">
+      <Declaration><![CDATA[METHOD Release
+VAR_INPUT
+	nUnitId : USINT;
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="Send" Id="{a0027438-c754-4ef1-8b32-34073cc05afd}">
+      <Declaration><![CDATA[METHOD Send : BOOL
+VAR_INPUT
+	nUnitId         : USINT;
+	pPdu            : POINTER TO BYTE;
+	cbPdu           : UINT;
+	nExpectedPduLen : UINT;   // From F_MbExpectedResponseLength; RTU uses it to detect end of frame
+	tTimeout        : TIME;
+END_VAR]]></Declaration>
+    </Method>
+  </Itf>
+</TcPlcObject>
