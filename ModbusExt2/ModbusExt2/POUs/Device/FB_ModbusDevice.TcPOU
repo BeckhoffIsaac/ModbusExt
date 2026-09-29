@@ -33,6 +33,7 @@ VAR
 	bInitDone      : BOOL;
 	fbSysTime      : GETSYSTEMTIME;
 	tNow           : ULINT;       // FILETIME, refreshed every cycle
+	bNoTransportLogged : BOOL;
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[fbSysTime();
@@ -43,11 +44,22 @@ IF NOT bEnable THEN
 END_IF
 
 IF NOT bInitDone THEN
-	// Init() arrives in the next step
+	Init();
+END_IF
+IF bConfigError THEN
 	RETURN;
 END_IF
 
-// Scheduler arrives after Init]]></ST>
+IF itfTransport = 0 THEN
+	IF NOT bNoTransportLogged THEN
+		bNoTransportLogged := TRUE;
+		WriteLog(nPoints, E_MbOp.Read, E_MbErrorClass.Config, 0, GVL_MbConst.CFG_NO_TRANSPORT, 0, 0);
+	END_IF
+	RETURN;
+END_IF
+bNoTransportLogged := FALSE;
+
+// Scheduler arrives next]]></ST>
     </Implementation>
     <Method Name="AddPoint" Id="{cdc563ad-2007-438e-a6cf-0a325451b108}">
       <Declaration><![CDATA[METHOD PUBLIC AddPoint
@@ -68,6 +80,155 @@ aState[nPoints].sName  := sName;
 stPoint.nIndex         := nPoints;
 nPoints                := nPoints + 1;
 bInitDone              := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="BuildBlocks" Id="{3928ccad-47f7-446b-bf98-afb4958d10cb}">
+      <Declaration><![CDATA[METHOD PROTECTED BuildBlocks : BOOL
+VAR
+	k, idx    : UINT;
+	nB        : UINT;        // Open block
+	nBlockEnd : UDINT;       // Exclusive end offset of the open block
+	nNewEnd   : UDINT;
+	nMaxCount : UDINT;
+	bBits     : BOOL;
+	bOpen     : BOOL;
+	ePoll     : E_MbPoll;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[BuildBlocks := TRUE;
+nBlocks := 0;
+bOpen   := FALSE;
+nB      := 0;
+
+FOR k := 0 TO nPoints - 1 DO
+	idx   := aSorted[k];
+	ePoll := aState[idx].pPoint^.ePoll;
+	IF ePoll = E_MbPoll.Off THEN
+		aState[idx].nBlock := GVL_MbParam.MB_MAX_BLOCKS;
+		CONTINUE;
+	END_IF
+
+	bBits := (aState[idx].eRegion = E_MbRegion.Coil) OR (aState[idx].eRegion = E_MbRegion.DiscreteInput);
+	IF bBits THEN
+		nMaxCount := GVL_MbConst.MAX_READ_COILS;
+	ELSE
+		nMaxCount := stProfile.nMaxRegsPerRead;
+	END_IF
+	nNewEnd := UINT_TO_UDINT(aState[idx].nOffset) + aState[idx].nCount;
+
+	// Extend the open block: same region and poll class, gap small enough, span fits
+	IF bOpen AND_THEN (aBlocks[nB].eRegion = aState[idx].eRegion AND aBlocks[nB].ePoll = ePoll)
+	   AND_THEN (aState[idx].nOffset - nBlockEnd <= stProfile.nMaxGap)
+	   AND_THEN (nNewEnd - aBlocks[nB].nOffset <= nMaxCount) THEN
+		aBlocks[nB].nCount       := UDINT_TO_UINT(nNewEnd - aBlocks[nB].nOffset);
+		aBlocks[nB].nSortedCount := aBlocks[nB].nSortedCount + 1;
+		aState[idx].nBlock       := nB;
+		nBlockEnd                := MAX(nBlockEnd, nNewEnd);
+		CONTINUE;
+	END_IF
+
+	// Start a new block
+	IF nBlocks >= GVL_MbParam.MB_MAX_BLOCKS THEN
+		ConfigFail(idx, GVL_MbConst.CFG_TOO_MANY_BLOCKS);
+		BuildBlocks := FALSE;
+		RETURN;
+	END_IF
+	nB := nBlocks;
+	aBlocks[nB].eRegion      := aState[idx].eRegion;
+	aBlocks[nB].nOffset      := aState[idx].nOffset;
+	aBlocks[nB].nCount       := aState[idx].nCount;
+	aBlocks[nB].nFc          := aState[idx].nReadFc;
+	aBlocks[nB].ePoll        := ePoll;
+	aBlocks[nB].nSortedFirst := k;
+	aBlocks[nB].nSortedCount := 1;
+	aBlocks[nB].tLastPoll    := 0;
+	aBlocks[nB].nConsecFail  := 0;
+	aState[idx].nBlock       := nB;
+	nBlockEnd                := nNewEnd;
+	nBlocks                  := nBlocks + 1;
+	bOpen                    := TRUE;
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ConfigFail" Id="{586cbb88-dc1a-4284-b485-4c098370b43b}">
+      <Declaration><![CDATA[METHOD PROTECTED ConfigFail
+VAR_INPUT
+	nPointIdx : UINT;   // >= nPoints means device-level
+	nCode     : BYTE;   // GVL_MbConst.CFG_*
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bConfigError := TRUE;
+WriteLog(nPointIdx, E_MbOp.Read, E_MbErrorClass.Config, 0, nCode, 0, 0);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Init" Id="{d0df7de0-453e-4f09-b5f0-ae59dccc5e0f}">
+      <Declaration><![CDATA[METHOD PROTECTED Init
+VAR
+	i, j, nTmp : UINT;
+	nKey       : UDINT;
+	bOk        : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bConfigError := FALSE;
+bOk          := TRUE;
+nBlocks      := 0;
+
+IF bAddOverflow THEN
+	ConfigFail(nPoints, GVL_MbConst.CFG_TOO_MANY_POINTS);
+	bOk := FALSE;
+END_IF
+IF nPoints = 0 THEN
+	ConfigFail(nPoints, GVL_MbConst.CFG_NO_POINTS);
+	bInitDone := TRUE;
+	RETURN;
+END_IF
+
+FOR i := 0 TO nPoints - 1 DO
+	IF NOT ResolvePoint(i) THEN
+		bOk := FALSE;
+	END_IF
+END_FOR
+
+// Duplicate names and overlapping ranges. O(n²), runs once.
+FOR i := 0 TO nPoints - 1 DO
+	FOR j := i + 1 TO nPoints - 1 DO
+		IF aState[i].sName = aState[j].sName THEN
+			ConfigFail(j, GVL_MbConst.CFG_DUP_NAME);
+			bOk := FALSE;
+		END_IF
+		IF aState[i].eRegion = aState[j].eRegion THEN
+			IF UINT_TO_UDINT(aState[i].nOffset) < UINT_TO_UDINT(aState[j].nOffset) + aState[j].nCount
+			   AND UINT_TO_UDINT(aState[j].nOffset) < UINT_TO_UDINT(aState[i].nOffset) + aState[i].nCount THEN
+				ConfigFail(j, GVL_MbConst.CFG_OVERLAP);
+				bOk := FALSE;
+			END_IF
+		END_IF
+	END_FOR
+END_FOR
+
+IF bOk THEN
+	// Insertion sort of point indices by SortKey
+	FOR i := 0 TO nPoints - 1 DO
+		aSorted[i] := i;
+	END_FOR
+	FOR i := 1 TO nPoints - 1 DO
+		nTmp := aSorted[i];
+		nKey := SortKey(nTmp);
+		j    := i;
+		WHILE j > 0 AND_THEN SortKey(aSorted[j - 1]) > nKey DO
+			aSorted[j] := aSorted[j - 1];
+			j := j - 1;
+		END_WHILE
+		aSorted[j] := nTmp;
+	END_FOR
+
+	IF NOT BuildBlocks() THEN
+		bOk := FALSE;
+	END_IF
+END_IF
+
+bConfigError := NOT bOk;
+bInitDone    := TRUE;]]></ST>
       </Implementation>
     </Method>
     <Method Name="Profile" Id="{360a3ad9-88ea-438e-b315-cd7a5b2b1ebe}">
@@ -100,6 +261,243 @@ nPoints      := 0;
 nBlocks      := 0;
 bAddOverflow := FALSE;
 bInitDone    := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ResolvePoint" Id="{827675d9-78c7-437f-82ee-e2b7a3b4f256}">
+      <Declaration><![CDATA[METHOD PROTECTED ResolvePoint : BOOL
+VAR_INPUT
+	i     : UINT;
+END_VAR
+VAR
+	pP    : POINTER TO ST_MbPoint;
+	eReg  : E_MbRegion;
+	nOff  : UDINT;
+	bBits : BOOL;
+	bOk   : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ResolvePoint := FALSE;
+bOk := TRUE;
+pP  := aState[i].pPoint;
+
+IF pP = 0 OR_ELSE pP^.wMagic <> 16#4D50 THEN
+	ConfigFail(i, GVL_MbConst.CFG_BAD_MAGIC);
+	RETURN;
+END_IF
+IF LEN(aState[i].sName) = 0 THEN
+	ConfigFail(i, GVL_MbConst.CFG_EMPTY_NAME);
+	bOk := FALSE;
+END_IF
+
+// ---- Region and 0-based offset ----
+eReg := E_MbRegion.Auto;
+nOff := 0;
+CASE stProfile.eAddressing OF
+	E_MbAddressing.Modicon:
+		IF pP^.nAddr >= 1 AND pP^.nAddr <= 9999 THEN
+			eReg := E_MbRegion.Coil;            nOff := pP^.nAddr - 1;
+		ELSIF pP^.nAddr >= 10001 AND pP^.nAddr <= 19999 THEN
+			eReg := E_MbRegion.DiscreteInput;   nOff := pP^.nAddr - 10001;
+		ELSIF pP^.nAddr >= 30001 AND pP^.nAddr <= 39999 THEN
+			eReg := E_MbRegion.InputRegister;   nOff := pP^.nAddr - 30001;
+		ELSIF pP^.nAddr >= 40001 AND pP^.nAddr <= 49999 THEN
+			eReg := E_MbRegion.HoldingRegister; nOff := pP^.nAddr - 40001;
+		ELSIF pP^.nAddr >= 100001 AND pP^.nAddr <= 165536 THEN
+			eReg := E_MbRegion.DiscreteInput;   nOff := pP^.nAddr - 100001;
+		ELSIF pP^.nAddr >= 300001 AND pP^.nAddr <= 365536 THEN
+			eReg := E_MbRegion.InputRegister;   nOff := pP^.nAddr - 300001;
+		ELSIF pP^.nAddr >= 400001 AND pP^.nAddr <= 465536 THEN
+			eReg := E_MbRegion.HoldingRegister; nOff := pP^.nAddr - 400001;
+		END_IF
+		IF eReg = E_MbRegion.Auto THEN
+			ConfigFail(i, GVL_MbConst.CFG_BAD_ADDRESS);
+			bOk := FALSE;
+		ELSIF pP^.eRegion <> E_MbRegion.Auto AND pP^.eRegion <> eReg THEN
+			ConfigFail(i, GVL_MbConst.CFG_REGION_MISMATCH);
+			bOk := FALSE;
+		END_IF
+
+	E_MbAddressing.Offset0:
+		eReg := pP^.eRegion;
+		nOff := pP^.nAddr;
+
+	E_MbAddressing.Offset1:
+		eReg := pP^.eRegion;
+		IF pP^.nAddr >= 1 THEN
+			nOff := pP^.nAddr - 1;
+		ELSE
+			ConfigFail(i, GVL_MbConst.CFG_BAD_ADDRESS);
+			bOk := FALSE;
+		END_IF
+END_CASE
+
+IF eReg = E_MbRegion.Auto THEN
+	IF stProfile.eAddressing <> E_MbAddressing.Modicon THEN
+		ConfigFail(i, GVL_MbConst.CFG_REGION_REQUIRED);
+	END_IF
+	bOk  := FALSE;
+	eReg := E_MbRegion.HoldingRegister;   // Keep the remaining checks meaningful
+END_IF
+IF nOff > 65535 THEN
+	ConfigFail(i, GVL_MbConst.CFG_BAD_ADDRESS);
+	bOk  := FALSE;
+	nOff := 0;
+END_IF
+bBits := (eReg = E_MbRegion.Coil) OR (eReg = E_MbRegion.DiscreteInput);
+
+// ---- Type and register count ----
+aState[i].eType := pP^.eType;
+IF aState[i].eType = E_MbType.Auto THEN
+	IF bBits THEN
+		aState[i].eType := E_MbType.Boolean;
+	ELSE
+		aState[i].eType := E_MbType.UInt16;
+	END_IF
+END_IF
+aState[i].nCount := 1;
+CASE aState[i].eType OF
+	E_MbType.Boolean:
+		IF NOT bBits THEN
+			ConfigFail(i, GVL_MbConst.CFG_BAD_TYPE);
+			bOk := FALSE;
+		END_IF
+	E_MbType.Int16, E_MbType.UInt16:
+		IF bBits THEN
+			ConfigFail(i, GVL_MbConst.CFG_BAD_TYPE);
+			bOk := FALSE;
+		END_IF
+	E_MbType.RegisterBit:
+		IF bBits THEN
+			ConfigFail(i, GVL_MbConst.CFG_BAD_TYPE);
+			bOk := FALSE;
+		END_IF
+		IF pP^.nBit > 15 THEN
+			ConfigFail(i, GVL_MbConst.CFG_BAD_BIT);
+			bOk := FALSE;
+		END_IF
+	E_MbType.Int32, E_MbType.UInt32, E_MbType.Real32:
+		IF bBits THEN
+			ConfigFail(i, GVL_MbConst.CFG_BAD_TYPE);
+			bOk := FALSE;
+		END_IF
+		aState[i].nCount := 2;
+	E_MbType.Int64, E_MbType.UInt64, E_MbType.Real64:
+		IF bBits THEN
+			ConfigFail(i, GVL_MbConst.CFG_BAD_TYPE);
+			bOk := FALSE;
+		END_IF
+		aState[i].nCount := 4;
+	E_MbType.Text:
+		IF bBits OR pP^.nRegs < 1 OR pP^.nRegs > GVL_MbParam.MB_STR_LEN / 2 THEN
+			ConfigFail(i, GVL_MbConst.CFG_BAD_REGS);
+			bOk := FALSE;
+		ELSE
+			aState[i].nCount := pP^.nRegs;
+		END_IF
+	E_MbType.Raw:
+		IF bBits OR pP^.nRegs < 1 OR pP^.nRegs > GVL_MbParam.MB_RAW_WORDS THEN
+			ConfigFail(i, GVL_MbConst.CFG_BAD_REGS);
+			bOk := FALSE;
+		ELSE
+			aState[i].nCount := pP^.nRegs;
+		END_IF
+END_CASE
+IF NOT bBits AND aState[i].nCount > stProfile.nMaxRegsPerRead THEN
+	ConfigFail(i, GVL_MbConst.CFG_BAD_REGS);
+	bOk := FALSE;
+END_IF
+IF nOff + aState[i].nCount > 65536 THEN
+	ConfigFail(i, GVL_MbConst.CFG_BAD_ADDRESS);
+	bOk := FALSE;
+END_IF
+
+// ---- Scaling and fail value ----
+IF pP^.fRawMin <> pP^.fRawMax THEN
+	IF aState[i].eType = E_MbType.Boolean OR aState[i].eType = E_MbType.RegisterBit
+	   OR aState[i].eType = E_MbType.Text OR aState[i].eType = E_MbType.Raw THEN
+		ConfigFail(i, GVL_MbConst.CFG_BAD_SCALING);
+		bOk := FALSE;
+	END_IF
+ELSIF pP^.fEngMin <> 0 OR pP^.fEngMax <> 0 THEN
+	ConfigFail(i, GVL_MbConst.CFG_BAD_SCALING);   // Eng range given without a raw range
+	bOk := FALSE;
+END_IF
+IF pP^.bUseFailValue AND (aState[i].eType = E_MbType.Text OR aState[i].eType = E_MbType.Raw) THEN
+	ConfigFail(i, GVL_MbConst.CFG_BAD_FAILVALUE);
+	bOk := FALSE;
+END_IF
+
+// ---- Word order ----
+aState[i].eWordOrder := pP^.eWordOrder;
+IF aState[i].eWordOrder = E_MbWordOrder.Inherit THEN
+	aState[i].eWordOrder := stProfile.eWordOrder;
+END_IF
+IF aState[i].eWordOrder = E_MbWordOrder.Inherit THEN
+	aState[i].eWordOrder := E_MbWordOrder.ABCD;
+END_IF
+
+// ---- Function codes ----
+aState[i].nWriteFc := 0;
+CASE eReg OF
+	E_MbRegion.Coil:
+		aState[i].nReadFc  := GVL_MbConst.FC_READ_COILS;
+		aState[i].nWriteFc := SEL(stProfile.bFc16Only, GVL_MbConst.FC_WRITE_COIL, GVL_MbConst.FC_WRITE_COILS);
+	E_MbRegion.DiscreteInput:
+		aState[i].nReadFc  := GVL_MbConst.FC_READ_DISCRETE;
+	E_MbRegion.InputRegister:
+		aState[i].nReadFc  := GVL_MbConst.FC_READ_INPUT;
+	E_MbRegion.HoldingRegister:
+		aState[i].nReadFc  := GVL_MbConst.FC_READ_HOLDING;
+		IF aState[i].nCount = 1 THEN
+			aState[i].nWriteFc := SEL(stProfile.bFc16Only, GVL_MbConst.FC_WRITE_REGISTER, GVL_MbConst.FC_WRITE_REGISTERS);
+		ELSIF NOT stProfile.bFc6Only THEN
+			aState[i].nWriteFc := GVL_MbConst.FC_WRITE_REGISTERS;
+		END_IF
+END_CASE
+IF aState[i].eType = E_MbType.Text OR aState[i].eType = E_MbType.Raw THEN
+	aState[i].nWriteFc := 0;   // Read-only in v1
+END_IF
+
+// ---- Store, reset runtime state ----
+aState[i].eRegion     := eReg;
+aState[i].nOffset     := UDINT_TO_UINT(nOff);
+aState[i].nBlock      := GVL_MbParam.MB_MAX_BLOCKS;
+aState[i].bFailing    := FALSE;
+aState[i].nRepeat     := 0;
+aState[i].tLastLog    := 0;
+aState[i].eLastClass  := E_MbErrorClass.None;
+aState[i].nLastExc    := 0;
+aState[i].nWriteState := 0;
+
+ResolvePoint := bOk;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="SortKey" Id="{8e6ea9a0-7409-40db-a7f0-8f5157124ac6}">
+      <Declaration><![CDATA[METHOD PROTECTED SortKey : UDINT
+VAR_INPUT
+	i    : UINT;
+END_VAR
+VAR
+	nKey : UDINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// (poll class, region, offset) packed so an integer compare yields block-building order
+nKey := 0;
+IF aState[i].pPoint <> 0 THEN
+	CASE aState[i].pPoint^.ePoll OF
+		E_MbPoll.Fast: nKey := 0;
+		E_MbPoll.Slow: nKey := 1;
+		E_MbPoll.Off:  nKey := 2;
+	END_CASE
+END_IF
+nKey := nKey * 4;
+CASE aState[i].eRegion OF
+	E_MbRegion.Coil:            nKey := nKey + 0;
+	E_MbRegion.DiscreteInput:   nKey := nKey + 1;
+	E_MbRegion.InputRegister:   nKey := nKey + 2;
+	E_MbRegion.HoldingRegister: nKey := nKey + 3;
+END_CASE
+SortKey := SHL(nKey, 16) + aState[i].nOffset;]]></ST>
       </Implementation>
     </Method>
     <Method Name="WriteLog" Id="{262a0eaa-d64f-4553-83c6-d1d8def17402}">
