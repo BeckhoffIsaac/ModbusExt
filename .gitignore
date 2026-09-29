@@ -1,0 +1,48 @@
+# ---- TwinCAT 3 build output ----
+_Boot/
+_CompileInfo/
+_Libraries/
+*.compileinfo
+*.compiled-library
+*.tmc
+*.tpy
+*.tclrs
+*.tszip
+
+# ---- Visual Studio / XAE shell ----
+.vs/
+*.suo
+*.user
+*.userprefs
+*.ipch
+*.ncb
+*.opendb
+*.VC.db
+*.VC.opendb
+*.sdf
+*.log
+
+# ---- C# tool (ProfileEditor) ----
+bin/
+obj/
+packages/
+*.pdb
+*.idb
+TestResults/
+
+# ---- TwinCAT HMI (if added later) ----
+**/Server/
+**/.tchmi/
+
+# ---- OS / editor ----
+Thumbs.db
+.DS_Store
+*.bak
+*.orig
+# TwinCAT per-user / generated
+*.~u
+*.tmcRefac
+
+# TwinCAT per-user / generated
+*.~u
+*.tmcRefac

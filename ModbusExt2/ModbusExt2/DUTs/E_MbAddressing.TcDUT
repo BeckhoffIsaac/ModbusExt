@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="E_MbAddressing" Id="{1508dbc4-6629-40b8-8cab-7ef8fa791287}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE E_MbAddressing :
+(
+	Modicon := 0,
+	Offset0,
+	Offset1
+);
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

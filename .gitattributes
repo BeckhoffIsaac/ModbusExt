@@ -1,0 +1,11 @@
+* text=auto eol=crlf
+*.TcPOU text
+*.TcDUT text
+*.TcGVL text
+*.TcTTO text
+*.plcproj text
+*.tsproj text
+*.sln text
+*.library binary
+*.compiled-library binary
+*.xlsx binary

@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="E_MbRegion" Id="{334fca92-b17e-4248-856f-9d7792218441}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE E_MbRegion :
+(
+	Auto := 0,
+	Coil,
+	DiscreteInput,
+	InputRegister,
+	HoldingRegister
+);
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

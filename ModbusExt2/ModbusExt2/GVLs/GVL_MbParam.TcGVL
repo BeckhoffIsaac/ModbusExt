@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <GVL Name="GVL_MbParam" Id="{f0d5b0ce-8d53-4a20-b803-213fec7e6af1}" ParameterList="True">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+VAR_GLOBAL CONSTANT
+	MB_MAX_POINTS                : UINT := 256;
+	MB_MAX_BLOCKS                : UINT := 64;
+	MB_LOG_SIZE                  : UINT := 100;
+	MB_STR_LEN                   : UINT := 32;
+	MB_RAW_WORDS                 : UINT := 8;
+	MB_NAME_LEN                  : UINT := 32;
+	MB_MAX_DEVICES_PER_TRANSPORT : UINT := 32;
+	MB_ADU_SIZE                  : UINT := 260;
+	MB_LOG_REPEAT_INTERVAL       : TIME := T#5M;
+	MB_OFFLINE_RETRY             : TIME := T#5S;
+END_VAR]]></Declaration>
+  </GVL>
+</TcPlcObject>
