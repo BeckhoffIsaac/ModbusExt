@@ -1,0 +1,104 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="F_MbParseResponse" Id="{d870f173-6e68-48a7-9603-b5a0f797ac2b}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION F_MbParseResponse : BOOL
+VAR_INPUT
+	pPdu         : POINTER TO BYTE;   // Response PDU, starting at the function code
+	cbPdu        : UINT;
+	nFcExpected  : USINT;
+	nQtyExpected : UINT;              // Quantity from the request (FC 1,2,3,4,15,16)
+END_VAR
+VAR_IN_OUT
+	stResult     : ST_MbParseResult;
+END_VAR
+VAR
+	nFc      : USINT;
+	nByteCnt : UINT;
+	nQtyEcho : UINT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// Returns stResult.bOk. Never reads past cbPdu.
+F_MbParseResponse    := FALSE;
+stResult.bOk         := FALSE;
+stResult.bException  := FALSE;
+stResult.nExcCode    := 0;
+stResult.eClass      := E_MbErrorClass.None;
+stResult.nByteCount  := 0;
+stResult.nDataOffset := 0;
+
+IF pPdu = 0 OR cbPdu < 1 THEN
+	stResult.eClass := E_MbErrorClass.Truncated;
+	RETURN;
+END_IF
+
+// Exception response: (FC OR 16#80) followed by one code byte
+IF pPdu[0] = (USINT_TO_BYTE(nFcExpected) OR GVL_MbConst.EXC_FLAG) THEN
+	IF cbPdu < 2 THEN
+		stResult.eClass := E_MbErrorClass.Truncated;
+	ELSE
+		stResult.bException := TRUE;
+		stResult.nExcCode   := pPdu[1];
+		stResult.eClass     := E_MbErrorClass.Exception;
+	END_IF
+	RETURN;
+END_IF
+
+nFc := BYTE_TO_USINT(pPdu[0]);
+IF nFc <> nFcExpected THEN
+	stResult.eClass := E_MbErrorClass.Malformed;
+	RETURN;
+END_IF
+
+CASE nFc OF
+	GVL_MbConst.FC_READ_COILS, GVL_MbConst.FC_READ_DISCRETE,
+	GVL_MbConst.FC_READ_HOLDING, GVL_MbConst.FC_READ_INPUT:
+		IF cbPdu < 2 THEN
+			stResult.eClass := E_MbErrorClass.Truncated;
+			RETURN;
+		END_IF
+		nByteCnt := BYTE_TO_UINT(pPdu[1]);
+		IF nFc <= GVL_MbConst.FC_READ_DISCRETE THEN
+			IF nByteCnt <> (nQtyExpected + 7) / 8 THEN
+				stResult.eClass := E_MbErrorClass.Malformed;
+				RETURN;
+			END_IF
+		ELSIF nByteCnt <> 2 * nQtyExpected THEN
+			stResult.eClass := E_MbErrorClass.Malformed;
+			RETURN;
+		END_IF
+		IF cbPdu < 2 + nByteCnt THEN
+			stResult.eClass := E_MbErrorClass.Truncated;
+			RETURN;
+		END_IF
+		stResult.nByteCount  := nByteCnt;
+		stResult.nDataOffset := 2;
+		stResult.bOk         := TRUE;
+
+	GVL_MbConst.FC_WRITE_COIL, GVL_MbConst.FC_WRITE_REGISTER:
+		IF cbPdu < 5 THEN
+			stResult.eClass := E_MbErrorClass.Truncated;
+			RETURN;
+		END_IF
+		stResult.bOk := TRUE;
+
+	GVL_MbConst.FC_WRITE_COILS, GVL_MbConst.FC_WRITE_REGISTERS:
+		IF cbPdu < 5 THEN
+			stResult.eClass := E_MbErrorClass.Truncated;
+			RETURN;
+		END_IF
+		nQtyEcho := SHL(BYTE_TO_UINT(pPdu[3]), 8) + BYTE_TO_UINT(pPdu[4]);
+		IF nQtyEcho <> nQtyExpected THEN
+			stResult.eClass := E_MbErrorClass.Malformed;
+			RETURN;
+		END_IF
+		stResult.bOk := TRUE;
+ELSE
+	stResult.eClass := E_MbErrorClass.Malformed;
+	RETURN;
+END_CASE
+
+F_MbParseResponse := stResult.bOk;]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

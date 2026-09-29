@@ -1,0 +1,88 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="F_MbBuildRequest" Id="{f0c2622d-1065-43be-8a79-e9dd4e842001}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION F_MbBuildRequest : UINT
+VAR_INPUT
+	nFc      : USINT;             // GVL_MbConst.FC_*
+	nOffset  : UINT;              // 0-based PDU address
+	nQty     : UINT;              // FC 1,2,3,4,15,16. Ignored for FC 5,6
+	pData    : POINTER TO BYTE;   // FC5/6: 2 bytes big-endian. FC15: packed coils. FC16: registers big-endian
+	cbData   : UINT;              // Payload length
+	pPdu     : POINTER TO BYTE;   // Output buffer
+	cbPduMax : UINT;              // Output buffer size
+END_VAR
+VAR
+	nLen     : UINT;
+	nByteCnt : UINT;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// Returns the PDU length written to pPdu, or 0 if the request is invalid.
+F_MbBuildRequest := 0;
+IF pPdu = 0 OR cbPduMax < 5 THEN
+	RETURN;
+END_IF
+
+pPdu[0] := USINT_TO_BYTE(nFc);
+pPdu[1] := UINT_TO_BYTE(SHR(nOffset, 8));
+pPdu[2] := UINT_TO_BYTE(nOffset);
+
+CASE nFc OF
+	GVL_MbConst.FC_READ_COILS, GVL_MbConst.FC_READ_DISCRETE:
+		IF nQty < 1 OR nQty > GVL_MbConst.MAX_READ_COILS THEN
+			RETURN;
+		END_IF
+		pPdu[3] := UINT_TO_BYTE(SHR(nQty, 8));
+		pPdu[4] := UINT_TO_BYTE(nQty);
+		nLen := 5;
+
+	GVL_MbConst.FC_READ_HOLDING, GVL_MbConst.FC_READ_INPUT:
+		IF nQty < 1 OR nQty > GVL_MbConst.MAX_READ_REGS THEN
+			RETURN;
+		END_IF
+		pPdu[3] := UINT_TO_BYTE(SHR(nQty, 8));
+		pPdu[4] := UINT_TO_BYTE(nQty);
+		nLen := 5;
+
+	GVL_MbConst.FC_WRITE_COIL, GVL_MbConst.FC_WRITE_REGISTER:
+		IF pData = 0 OR cbData <> 2 THEN
+			RETURN;
+		END_IF
+		pPdu[3] := pData[0];
+		pPdu[4] := pData[1];
+		nLen := 5;
+
+	GVL_MbConst.FC_WRITE_COILS:
+		IF nQty < 1 OR nQty > GVL_MbConst.MAX_WRITE_COILS THEN
+			RETURN;
+		END_IF
+		nByteCnt := (nQty + 7) / 8;
+		IF pData = 0 OR cbData <> nByteCnt OR cbPduMax < 6 + nByteCnt THEN
+			RETURN;
+		END_IF
+		pPdu[3] := UINT_TO_BYTE(SHR(nQty, 8));
+		pPdu[4] := UINT_TO_BYTE(nQty);
+		pPdu[5] := UINT_TO_BYTE(nByteCnt);
+		MEMCPY(pPdu + 6, pData, nByteCnt);
+		nLen := 6 + nByteCnt;
+
+	GVL_MbConst.FC_WRITE_REGISTERS:
+		IF nQty < 1 OR nQty > GVL_MbConst.MAX_WRITE_REGS THEN
+			RETURN;
+		END_IF
+		nByteCnt := 2 * nQty;
+		IF pData = 0 OR cbData <> nByteCnt OR cbPduMax < 6 + nByteCnt THEN
+			RETURN;
+		END_IF
+		pPdu[3] := UINT_TO_BYTE(SHR(nQty, 8));
+		pPdu[4] := UINT_TO_BYTE(nQty);
+		pPdu[5] := UINT_TO_BYTE(nByteCnt);
+		MEMCPY(pPdu + 6, pData, nByteCnt);
+		nLen := 6 + nByteCnt;
+ELSE
+	RETURN;
+END_CASE
+
+F_MbBuildRequest := nLen;]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

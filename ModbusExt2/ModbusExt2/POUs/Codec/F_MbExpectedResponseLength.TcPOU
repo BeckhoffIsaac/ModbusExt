@@ -8,7 +8,19 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[]]></ST>
+      <ST><![CDATA[// PDU bytes of a normal response (no unit ID, CRC or MBAP). 0 = unsupported FC.
+// An exception response is always 2 PDU bytes; transports check for that separately.
+CASE nFc OF
+	GVL_MbConst.FC_READ_COILS, GVL_MbConst.FC_READ_DISCRETE:
+		F_MbExpectedResponseLength := 2 + (nQty + 7) / 8;
+	GVL_MbConst.FC_READ_HOLDING, GVL_MbConst.FC_READ_INPUT:
+		F_MbExpectedResponseLength := 2 + 2 * nQty;
+	GVL_MbConst.FC_WRITE_COIL, GVL_MbConst.FC_WRITE_REGISTER,
+	GVL_MbConst.FC_WRITE_COILS, GVL_MbConst.FC_WRITE_REGISTERS:
+		F_MbExpectedResponseLength := 5;
+ELSE
+	F_MbExpectedResponseLength := 0;
+END_CASE]]></ST>
     </Implementation>
   </POU>
 </TcPlcObject>
