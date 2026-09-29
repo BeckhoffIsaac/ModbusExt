@@ -1,0 +1,25 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="PRG_DeviceTest" Id="{94a4fdd9-58be-470e-a662-37590c80149a}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM PRG_DeviceTest
+VAR
+	fbGood    : FB_Mb_TestGood;
+	fbBad     : FB_Mb_TestBad;
+	stLogGood : ST_MbLog;
+	stLogBad  : ST_MbLog;
+	bGoodPass : BOOL;
+	bBadPass  : BOOL;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[fbGood(bEnable := TRUE, stLog := stLogGood);
+fbBad(bEnable := TRUE, stLog := stLogBad);
+
+// 13 points -> 7 blocks: coil, DI, IR, 3x fast HR, 1x slow HR. One log entry: no transport attached.
+bGoodPass := (NOT fbGood.bConfigError) AND (fbGood.nPoints = 13) AND (fbGood.nBlocks = 7)
+             AND (stLogGood.nCount = 1) AND (stLogGood.aEntries[0].nExcCode = GVL_MbConst.CFG_NO_TRANSPORT);
+
+// 7 findings: BAD_ADDRESS, BAD_BIT, BAD_SCALING, BAD_REGS, BAD_TYPE, DUP_NAME, OVERLAP
+bBadPass := fbBad.bConfigError AND (fbBad.nBlocks = 0) AND (stLogBad.nCount = 7);]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

@@ -98,7 +98,16 @@
     <Compile Include="POUs\MAIN.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="POUs\Test\FB_Mb_TestBad.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\Test\FB_Mb_TestGood.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="POUs\Test\PRG_CodecTest.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\Test\PRG_DeviceTest.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="POUs\Transport\I_MbTransport.TcIO">

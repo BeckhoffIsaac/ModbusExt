@@ -1,0 +1,72 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_Mb_TestGood" Id="{83a1e989-a86f-48f4-a90f-4a6e1e4a8281}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_Mb_TestGood EXTENDS FB_ModbusDevice
+VAR
+	// Holding registers: 40001..40004 contiguous, 40010 within gap 8 -> one block
+	Hr1    : ST_MbPoint := (nAddr := 40001);
+	Hr2    : ST_MbPoint := (nAddr := 40002, eType := E_MbType.Int16, fRawMin := 0, fRawMax := 1000, fEngMin := 0, fEngMax := 100);
+	Hr3    : ST_MbPoint := (nAddr := 40003, eType := E_MbType.Real32);
+	Hr4    : ST_MbPoint := (nAddr := 40010, eType := E_MbType.UInt32);
+	// Gap > 8 -> second block
+	Hr5    : ST_MbPoint := (nAddr := 40100, eType := E_MbType.Text, nRegs := 8);
+	// Slow -> its own block
+	Hr6    : ST_MbPoint := (nAddr := 40116, ePoll := E_MbPoll.Slow);
+	// Off -> no block
+	Hr7    : ST_MbPoint := (nAddr := 40200, ePoll := E_MbPoll.Off);
+	// Far away -> third fast HR block
+	Status : ST_MbPoint := (nAddr := 40300, eType := E_MbType.RegisterBit, nBit := 3);
+	// Input registers, contiguous -> one block
+	Ir1    : ST_MbPoint := (nAddr := 30001, eType := E_MbType.Real32);
+	Ir2    : ST_MbPoint := (nAddr := 30003, eType := E_MbType.UInt32);
+	// Coils and a discrete input
+	Coil1  : ST_MbPoint := (nAddr := 1);
+	Coil2  : ST_MbPoint := (nAddr := 2);
+	Di1    : ST_MbPoint := (nAddr := 10001);
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[SUPER^(stLog := stLog);]]></ST>
+    </Implementation>
+    <Method Name="FB_Init" Id="{fea2264a-c40e-4409-b221-df979594f906}">
+      <Declaration><![CDATA[//FB_Init is always available implicitly and it is used primarily for initialization.
+//The return value is not evaluated. For a specific influence, you can also declare the
+//methods explicitly and provide additional code there with the standard initialization
+//code. You can evaluate the return value.
+METHOD FB_Init: BOOL
+VAR_INPUT
+    bInitRetains: BOOL; // TRUE: the retain variables are initialized (reset warm / reset cold)
+    bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)   
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Register();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Reinit" Id="{599692e1-ff02-430a-955f-1f68126459bf}">
+      <Declaration><![CDATA[METHOD FB_Reinit: BOOL
+VAR_INPUT   
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Register();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Register" Id="{11cb6493-f82c-4509-8253-578a064cf191}">
+      <Declaration><![CDATA[METHOD PRIVATE Register]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Profile(sModel := 'TestGood', eWordOrder := E_MbWordOrder.CDAB);
+AddPoint(Hr1, 'Hr1');
+AddPoint(Hr2, 'Hr2');
+AddPoint(Hr3, 'Hr3');
+AddPoint(Hr4, 'Hr4');
+AddPoint(Hr5, 'Hr5');
+AddPoint(Hr6, 'Hr6');
+AddPoint(Hr7, 'Hr7');
+AddPoint(Status, 'Status');
+AddPoint(Ir1, 'Ir1');
+AddPoint(Ir2, 'Ir2');
+AddPoint(Coil1, 'Coil1');
+AddPoint(Coil2, 'Coil2');
+AddPoint(Di1, 'Di1');]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

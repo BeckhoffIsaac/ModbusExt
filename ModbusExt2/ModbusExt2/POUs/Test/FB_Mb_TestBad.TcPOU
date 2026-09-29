@@ -1,0 +1,54 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_Mb_TestBad" Id="{d1a6654a-d6b0-4ac0-b1ad-8dba202226e9}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_Mb_TestBad EXTENDS FB_ModbusDevice
+VAR
+	A : ST_MbPoint := (nAddr := 40001);
+	B : ST_MbPoint := (nAddr := 40001);                                               // overlap + duplicate name
+	C : ST_MbPoint := (nAddr := 20005);                                               // no Modicon range
+	D : ST_MbPoint := (nAddr := 40010, eType := E_MbType.RegisterBit, nBit := 16);   // bit out of range
+	E : ST_MbPoint := (nAddr := 40020, fEngMax := 100);                               // eng range without raw range
+	F : ST_MbPoint := (nAddr := 40030, eType := E_MbType.Text);                       // nRegs missing
+	G : ST_MbPoint := (nAddr := 10001, eType := E_MbType.Int16);                      // integer type on a bit region
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[SUPER^(stLog := stLog);]]></ST>
+    </Implementation>
+    <Method Name="FB_Init" Id="{9ccf2a59-ae49-46f9-bfd4-35f087681290}">
+      <Declaration><![CDATA[//FB_Init is always available implicitly and it is used primarily for initialization.
+//The return value is not evaluated. For a specific influence, you can also declare the
+//methods explicitly and provide additional code there with the standard initialization
+//code. You can evaluate the return value.
+METHOD FB_Init: BOOL
+VAR_INPUT
+    bInitRetains: BOOL; // TRUE: the retain variables are initialized (reset warm / reset cold)
+    bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)   
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Register();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Reinit" Id="{a4605516-7a17-4c79-86b7-3760a2fb398d}">
+      <Declaration><![CDATA[METHOD FB_Reinit: BOOL
+VAR_INPUT   
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Register();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Register" Id="{3d4ed0e2-d848-4788-8452-0d744e4a98dd}">
+      <Declaration><![CDATA[METHOD Register
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Profile(sModel := 'TestBad');
+AddPoint(A, 'A');
+AddPoint(B, 'A');
+AddPoint(C, 'C');
+AddPoint(D, 'D');
+AddPoint(E, 'E');
+AddPoint(F, 'F');
+AddPoint(G, 'G');]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>
