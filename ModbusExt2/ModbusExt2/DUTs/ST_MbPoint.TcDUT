@@ -1,0 +1,43 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_MbPoint" Id="{194ce857-6537-40d1-9c76-588bb9120671}">
+    <Declaration><![CDATA[TYPE ST_MbPoint :
+STRUCT
+	// ---- Profile fills these ----
+	nAddr         : UDINT;                                   // Address as printed in the device manual (see E_MbAddressing)
+	eType         : E_MbType     := E_MbType.Auto;           // Auto: Boolean for bit regions, UInt16 for registers
+	eRegion       : E_MbRegion   := E_MbRegion.Auto;         // Auto: derived from nAddr (Modicon); required for Offset0/Offset1
+	eWordOrder    : E_MbWordOrder := E_MbWordOrder.Inherit;  // Inherit from Profile()
+	fRawMin       : LREAL;                                   // Scaling active iff fRawMin <> fRawMax
+	fRawMax       : LREAL;
+	fEngMin       : LREAL;
+	fEngMax       : LREAL;
+	ePoll         : E_MbPoll     := E_MbPoll.Fast;
+	bUseFailValue : BOOL;                                    // TRUE: fValue := fFailValue after retries exhausted
+	fFailValue    : LREAL;
+	nRegs         : UINT;                                    // Text/Raw only: registers to read
+	nBit          : USINT;                                   // RegisterBit only: 0..15
+
+	// ---- Library fills these ----
+	fValue        : LREAL;                                   // Scaled value (numeric, Boolean, RegisterBit)
+	sValue        : STRING(GVL_MbParam.MB_STR_LEN);          // Text
+	aRaw          : ARRAY[0..GVL_MbParam.MB_RAW_WORDS-1] OF WORD;  // Raw, and raw words of every read
+	bValid        : BOOL;
+	tLastGood     : ULINT;                                   // FILETIME (100 ns, UTC) of last good read
+	nFailCount    : UDINT;
+	bProbe        : BOOL;                                    // User sets; cleared after stProbe is filled
+
+	// ---- Write handshake ----
+	fWriteValue   : LREAL;
+	bWriteReq     : BOOL;
+	bWriteBusy    : BOOL;
+	bWriteDone    : BOOL;
+	bWriteErr     : BOOL;
+
+	// ---- Internal ----
+	wMagic        : WORD := 16#4D50;
+	nIndex        : UINT;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

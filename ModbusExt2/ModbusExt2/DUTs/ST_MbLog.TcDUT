@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_MbLog" Id="{d6bd69f5-e04b-4e6e-b5ab-775c38bea8d8}">
+    <Declaration><![CDATA[TYPE ST_MbLog :
+STRUCT
+	aEntries     : ARRAY[0..GVL_MbParam.MB_LOG_SIZE-1] OF ST_MbLogEntry;
+	nHead        : UINT;                             // Next write index
+	nCount       : UINT;                             // Valid entries, <= MB_LOG_SIZE
+	nTotalErrors : UDINT;
+	nDropped     : UDINT;                            // Entries overwritten by ring wrap
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>
