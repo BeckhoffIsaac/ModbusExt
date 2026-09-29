@@ -1,0 +1,157 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_ModbusDevice" Id="{989af25a-1e11-453f-a28c-de297d26818d}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_ModbusDevice
+VAR_INPUT
+	itfTransport   : I_MbTransport;
+	nUnitId        : USINT := 1;
+	bEnable        : BOOL;
+	tTimeout       : TIME  := T#500MS;
+	nRetries       : USINT := 2;
+END_VAR
+VAR_IN_OUT
+	stLog          : ST_MbLog;
+END_VAR
+VAR_OUTPUT
+	bOnline        : BOOL;
+	bConfigError   : BOOL;
+	nErrorCount    : UDINT;
+	nTxCount       : UDINT;
+	nRxCount       : UDINT;
+	tLastRoundTrip : TIME;
+	stLastError    : ST_MbLogEntry;
+	stProbe        : ST_MbProbe;
+	nPoints        : UINT;
+	nBlocks        : UINT;
+END_VAR
+VAR
+	stProfile      : ST_MbProfile;
+	aState         : ARRAY[0..GVL_MbParam.MB_MAX_POINTS-1] OF ST_MbPointState;
+	aSorted        : ARRAY[0..GVL_MbParam.MB_MAX_POINTS-1] OF UINT;   // Point indices ordered by region, offset
+	aBlocks        : ARRAY[0..GVL_MbParam.MB_MAX_BLOCKS-1] OF ST_MbBlock;
+	bAddOverflow   : BOOL;        // Add() called with the table full; reported by Init
+	bInitDone      : BOOL;
+	fbSysTime      : GETSYSTEMTIME;
+	tNow           : ULINT;       // FILETIME, refreshed every cycle
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[fbSysTime();
+tNow := SHL(DWORD_TO_ULINT(fbSysTime.timeHiDW), 32) + DWORD_TO_ULINT(fbSysTime.timeLoDW);
+
+IF NOT bEnable THEN
+	RETURN;
+END_IF
+
+IF NOT bInitDone THEN
+	// Init() arrives in the next step
+	RETURN;
+END_IF
+
+// Scheduler arrives after Init]]></ST>
+    </Implementation>
+    <Method Name="AddPoint" Id="{cdc563ad-2007-438e-a6cf-0a325451b108}">
+      <Declaration><![CDATA[METHOD PUBLIC AddPoint
+VAR_IN_OUT
+	stPoint : ST_MbPoint;
+END_VAR
+VAR_INPUT
+	sName   : STRING;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF nPoints >= GVL_MbParam.MB_MAX_POINTS THEN
+	bAddOverflow := TRUE;
+	RETURN;
+END_IF
+
+aState[nPoints].pPoint := ADR(stPoint);
+aState[nPoints].sName  := sName;
+stPoint.nIndex         := nPoints;
+nPoints                := nPoints + 1;
+bInitDone              := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Profile" Id="{360a3ad9-88ea-438e-b315-cd7a5b2b1ebe}">
+      <Declaration><![CDATA[METHOD PUBLIC Profile
+VAR_INPUT
+	sModel          : STRING;
+	eWordOrder      : E_MbWordOrder  := E_MbWordOrder.ABCD;
+	eAddressing     : E_MbAddressing := E_MbAddressing.Modicon;
+	nMaxRegsPerRead : UINT := 125;
+	nMaxGap         : UINT := 8;
+	bFc6Only        : BOOL := FALSE;
+	bFc16Only       : BOOL := FALSE;
+	bStringByteSwap : BOOL := FALSE;
+	tSlowPoll       : TIME := T#5S;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// First call in a profile's Register(). Resets the point table so Register() is
+// safe to run again from FB_reinit after an online change.
+stProfile.sModel          := sModel;
+stProfile.eWordOrder      := eWordOrder;
+stProfile.eAddressing     := eAddressing;
+stProfile.nMaxRegsPerRead := LIMIT(1, nMaxRegsPerRead, GVL_MbConst.MAX_READ_REGS);
+stProfile.nMaxGap         := nMaxGap;
+stProfile.bFc6Only        := bFc6Only;
+stProfile.bFc16Only       := bFc16Only;
+stProfile.bStringByteSwap := bStringByteSwap;
+stProfile.tSlowPoll       := tSlowPoll;
+
+nPoints      := 0;
+nBlocks      := 0;
+bAddOverflow := FALSE;
+bInitDone    := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="WriteLog" Id="{262a0eaa-d64f-4553-83c6-d1d8def17402}">
+      <Declaration><![CDATA[METHOD PROTECTED WriteLog
+VAR_INPUT
+	nPointIdx : UINT;              // >= nPoints means device-level entry
+	eOp       : E_MbOp;
+	eClass    : E_MbErrorClass;
+	nFc       : USINT;
+	nExcCode  : BYTE;
+	nRetries  : USINT;
+	nRepeat   : UDINT;
+END_VAR
+VAR
+	stEntry   : ST_MbLogEntry;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[stEntry.tTime    := tNow;
+stEntry.nUnitId  := nUnitId;
+stEntry.eOp      := eOp;
+stEntry.eClass   := eClass;
+stEntry.nFc      := USINT_TO_BYTE(nFc);
+stEntry.nExcCode := nExcCode;
+stEntry.nRetries := nRetries;
+stEntry.nRepeat  := nRepeat;
+
+IF nPointIdx < nPoints AND aState[nPointIdx].pPoint <> 0 THEN
+	stEntry.sName   := aState[nPointIdx].sName;
+	stEntry.eRegion := aState[nPointIdx].eRegion;
+	stEntry.nAddr   := aState[nPointIdx].pPoint^.nAddr;
+ELSE
+	stEntry.sName   := stProfile.sModel;
+END_IF
+
+// Ring insert
+IF stLog.nHead >= GVL_MbParam.MB_LOG_SIZE THEN
+	stLog.nHead := 0;
+END_IF
+stLog.aEntries[stLog.nHead] := stEntry;
+stLog.nHead := (stLog.nHead + 1) MOD GVL_MbParam.MB_LOG_SIZE;
+IF stLog.nCount < GVL_MbParam.MB_LOG_SIZE THEN
+	stLog.nCount := stLog.nCount + 1;
+ELSE
+	stLog.nDropped := stLog.nDropped + 1;
+END_IF
+
+IF eClass <> E_MbErrorClass.Recovered AND eClass <> E_MbErrorClass.None THEN
+	stLog.nTotalErrors := stLog.nTotalErrors + 1;
+	nErrorCount        := nErrorCount + 1;
+	stLastError        := stEntry;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

@@ -92,6 +92,9 @@
     <Compile Include="POUs\Codec\F_MbParseResponse.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="POUs\Device\FB_ModbusDevice.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="POUs\MAIN.TcPOU">
       <SubType>Code</SubType>
     </Compile>
@@ -107,6 +110,7 @@
     <Folder Include="GVLs" />
     <Folder Include="POUs" />
     <Folder Include="POUs\Codec" />
+    <Folder Include="POUs\Device" />
     <Folder Include="POUs\Transport" />
     <Folder Include="POUs\Test" />
   </ItemGroup>
