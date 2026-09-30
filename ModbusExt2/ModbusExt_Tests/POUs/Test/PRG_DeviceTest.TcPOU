@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <POU Name="PRG_DeviceTest" Id="{94a4fdd9-58be-470e-a662-37590c80149a}" SpecialFunc="None">
+  <POU Name="PRG_DeviceTest" Id="{44d54b66-9568-49b1-bf0b-c2594aef63e7}" SpecialFunc="None">
     <Declaration><![CDATA[PROGRAM PRG_DeviceTest
 VAR
 	fbMock         : FB_MbTransportMock;

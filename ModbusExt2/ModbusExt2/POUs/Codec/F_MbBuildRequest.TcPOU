@@ -62,7 +62,7 @@ CASE nFc OF
 		pPdu[3] := UINT_TO_BYTE(SHR(nQty, 8));
 		pPdu[4] := UINT_TO_BYTE(nQty);
 		pPdu[5] := UINT_TO_BYTE(nByteCnt);
-		MEMCPY(pPdu + 6, pData, nByteCnt);
+		F_MbMemCpy(pPdu + 6, pData, nByteCnt);
 		nLen := 6 + nByteCnt;
 
 	GVL_MbConst.FC_WRITE_REGISTERS:
@@ -76,7 +76,7 @@ CASE nFc OF
 		pPdu[3] := UINT_TO_BYTE(SHR(nQty, 8));
 		pPdu[4] := UINT_TO_BYTE(nQty);
 		pPdu[5] := UINT_TO_BYTE(nByteCnt);
-		MEMCPY(pPdu + 6, pData, nByteCnt);
+		F_MbMemCpy(pPdu + 6, pData, nByteCnt);
 		nLen := 6 + nByteCnt;
 ELSE
 	RETURN;

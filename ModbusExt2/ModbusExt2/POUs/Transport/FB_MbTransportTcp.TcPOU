@@ -234,7 +234,7 @@ END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[// Realign if the buffer was reset while the receive was in flight
 IF nOffset <> cbRx THEN
-	MEMMOVE(ADR(aRx[cbRx]), ADR(aRx[nOffset]), n);
+	F_MbMemCpy(ADR(aRx[cbRx]), ADR(aRx[nOffset]), n);
 END_IF
 cbRx := cbRx + n;
 
@@ -255,12 +255,12 @@ WHILE cbRx >= 7 DO
 	nPid   := SHL(BYTE_TO_UINT(aRx[2]), 8) + BYTE_TO_UINT(aRx[3]);
 	IF nPid = 0 AND nTidRx = nTid AND eState = E_MbXferState.Busy THEN
 		cbResp := nLen - 1;
-		MEMCPY(ADR(aResp), ADR(aRx[7]), cbResp);
+		F_MbMemCpy(ADR(aResp), ADR(aRx[7]), cbResp);
 		eState   := E_MbXferState.Done;
 		nRxCount := nRxCount + 1;
 	END_IF                                        // Otherwise stale: drop it
 	IF cbRx > nFrame THEN
-		MEMMOVE(ADR(aRx), ADR(aRx[nFrame]), cbRx - nFrame);
+		F_MbMemCpy(ADR(aRx), ADR(aRx[nFrame]), cbRx - nFrame);
 	END_IF
 	cbRx := cbRx - nFrame;
 END_WHILE]]></ST>
@@ -343,7 +343,7 @@ aTx[3] := 0;
 aTx[4] := UINT_TO_BYTE(SHR(cbPdu + 1, 8));
 aTx[5] := UINT_TO_BYTE(cbPdu + 1);
 aTx[6] := USINT_TO_BYTE(nUnitId);
-MEMCPY(ADR(aTx[7]), pPdu, cbPdu);
+F_MbMemCpy(ADR(aTx[7]), pPdu, cbPdu);
 cbTx := 7 + cbPdu;
 
 cbRx      := 0;                       // Anything stale is dropped; a late frame fails the TID check anyway

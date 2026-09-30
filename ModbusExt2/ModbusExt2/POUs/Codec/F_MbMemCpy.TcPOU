@@ -1,0 +1,27 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="F_MbMemCpy" Id="{ceaa80ab-7ec6-49f4-9406-396a1048c8ec}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION F_MbMemCpy : BOOL
+VAR_INPUT
+	pDst : POINTER TO BYTE;
+	pSrc : POINTER TO BYTE;
+	n    : UDINT;
+END_VAR
+VAR
+	i    : UDINT;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// Forward copy: safe for overlapping ranges when pDst <= pSrc (all our moves go downward)
+F_MbMemCpy := FALSE;
+IF pDst = 0 OR pSrc = 0 THEN
+	RETURN;
+END_IF
+IF n > 0 THEN
+	FOR i := 0 TO n - 1 DO
+		pDst[i] := pSrc[i];
+	END_FOR
+END_IF
+F_MbMemCpy := TRUE;]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

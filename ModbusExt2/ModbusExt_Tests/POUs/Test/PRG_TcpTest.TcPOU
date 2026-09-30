@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <POU Name="PRG_TcpTest" Id="{ffd27da5-dd9c-45ea-b695-d94c84934263}" SpecialFunc="None">
+  <POU Name="PRG_TcpTest" Id="{ca6b4fd9-bcce-4fa2-97ca-7295a7787863}" SpecialFunc="None">
     <Declaration><![CDATA[PROGRAM PRG_TcpTest
 VAR
 	fbTcp    : FB_MbTransportTcp := (sHost := '127.0.0.1', nPort := 502);

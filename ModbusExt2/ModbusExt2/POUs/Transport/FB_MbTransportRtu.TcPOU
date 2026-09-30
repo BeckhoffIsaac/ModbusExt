@@ -199,7 +199,7 @@ IF aRx[n - 2] <> WORD_TO_BYTE(wCrc) OR aRx[n - 1] <> WORD_TO_BYTE(SHR(wCrc, 8)) 
 	RETURN;
 END_IF
 cbResp := n - 3;
-MEMCPY(ADR(aResp), ADR(aRx[1]), cbResp);
+F_MbMemCpy(ADR(aResp), ADR(aRx[1]), cbResp);
 eState   := E_MbXferState.Done;
 nRxCount := nRxCount + 1;]]></ST>
       </Implementation>
@@ -262,15 +262,15 @@ END_IF]]></ST>
     <Method Name="Send" Id="{35181d38-4c71-472e-a030-3012e709e63f}">
       <Declaration><![CDATA[METHOD Send : BOOL
 VAR_INPUT
-	nUnitId	: USINT;
-	pPdu	: POINTER TO BYTE;
-	cbPdu	: UINT;
-	(* From F_MbExpectedResponseLength; RTU uses it to detect end of frame*)
-	nExpectedPduLen	: UINT;
-	tTimeout	: TIME;
-	wCrc : WORD;
+	nUnitId         : USINT;
+	pPdu            : POINTER TO BYTE;
+	cbPdu           : UINT;
+	nExpectedPduLen : UINT;
+	tTimeout        : TIME;
 END_VAR
-]]></Declaration>
+VAR
+	wCrc            : WORD;
+END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[Send := FALSE;
 IF nOwner <> nUnitId OR NOT bLineOk OR eState = E_MbXferState.Busy
@@ -279,7 +279,7 @@ IF nOwner <> nUnitId OR NOT bLineOk OR eState = E_MbXferState.Busy
 END_IF
 
 aTx[0] := USINT_TO_BYTE(nUnitId);
-MEMCPY(ADR(aTx[1]), pPdu, cbPdu);
+F_MbMemCpy(ADR(aTx[1]), pPdu, cbPdu);
 wCrc := F_MbCrc16(ADR(aTx), cbPdu + 1);
 aTx[cbPdu + 1] := WORD_TO_BYTE(wCrc);              // Low byte first on the wire
 aTx[cbPdu + 2] := WORD_TO_BYTE(SHR(wCrc, 8));

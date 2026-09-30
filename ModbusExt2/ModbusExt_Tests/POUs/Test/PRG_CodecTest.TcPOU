@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <POU Name="PRG_CodecTest" Id="{4138619a-9fdd-4080-80b9-2e65da991e0c}" SpecialFunc="None">
+  <POU Name="PRG_CodecTest" Id="{18b42e15-7d67-4044-b362-571b747f50bf}" SpecialFunc="None">
     <Declaration><![CDATA[PROGRAM PRG_CodecTest
 VAR
 	bRun            : BOOL := TRUE;     // Set TRUE online to re-run
@@ -36,7 +36,7 @@ wCrc := F_MbCrc16(ADR(aFrame), SIZEOF(aFrame));
 bCrcPass := (wCrc = 16#8776);
 
 // 2. Build FC3, offset 16#6B, qty 3 -> 03 00 6B 00 03
-MEMSET(ADR(aPdu), 0, SIZEOF(aPdu));
+F_MbMemSet(ADR(aPdu), 0, SIZEOF(aPdu));
 nLen := F_MbBuildRequest(GVL_MbConst.FC_READ_HOLDING, 16#6B, 3, 0, 0, ADR(aPdu), SIZEOF(aPdu));
 bBuildPass := (nLen = 5) AND (aPdu[0] = 16#03) AND (aPdu[1] = 16#00) AND (aPdu[2] = 16#6B)
               AND (aPdu[3] = 16#00) AND (aPdu[4] = 16#03);

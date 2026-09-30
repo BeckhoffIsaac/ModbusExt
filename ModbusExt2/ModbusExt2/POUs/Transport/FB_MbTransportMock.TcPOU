@@ -170,7 +170,7 @@ CASE nFc OF
 		nByteCnt := (nQty + 7) / 8;
 		aResp[0] := aReq[0];
 		aResp[1] := UINT_TO_BYTE(nByteCnt);
-		MEMSET(ADR(aResp[2]), 0, nByteCnt);
+		F_MbMemSet(ADR(aResp[2]), 0, nByteCnt);
 		FOR i := 0 TO nQty - 1 DO
 			IF SEL(nFc = GVL_MbConst.FC_READ_COILS, aDiscrete[nOff + i], aCoils[nOff + i]) THEN
 				aResp[2 + i / 8] := aResp[2 + i / 8] OR SHL(BYTE#1, i MOD 8);
@@ -213,7 +213,7 @@ CASE nFc OF
 			SendException(3);
 			RETURN;
 		END_IF
-		MEMCPY(ADR(aResp), ADR(aReq), 5);
+		F_MbMemCpy(ADR(aResp), ADR(aReq), 5);
 		cbResp := 5;
 
 	GVL_MbConst.FC_WRITE_REGISTER:
@@ -222,7 +222,7 @@ CASE nFc OF
 			RETURN;
 		END_IF
 		aHolding[nOff] := UINT_TO_WORD(nQty);
-		MEMCPY(ADR(aResp), ADR(aReq), 5);
+		F_MbMemCpy(ADR(aResp), ADR(aReq), 5);
 		cbResp := 5;
 
 	GVL_MbConst.FC_WRITE_COILS:
@@ -234,7 +234,7 @@ CASE nFc OF
 		FOR i := 0 TO nQty - 1 DO
 			aCoils[nOff + i] := (aReq[6 + i / 8] AND SHL(BYTE#1, i MOD 8)) <> 0;
 		END_FOR
-		MEMCPY(ADR(aResp), ADR(aReq), 5);
+		F_MbMemCpy(ADR(aResp), ADR(aReq), 5);
 		cbResp := 5;
 
 	GVL_MbConst.FC_WRITE_REGISTERS:
@@ -245,7 +245,7 @@ CASE nFc OF
 		FOR i := 0 TO nQty - 1 DO
 			aHolding[nOff + i] := SHL(BYTE_TO_WORD(aReq[6 + 2 * i]), 8) OR BYTE_TO_WORD(aReq[7 + 2 * i]);
 		END_FOR
-		MEMCPY(ADR(aResp), ADR(aReq), 5);
+		F_MbMemCpy(ADR(aResp), ADR(aReq), 5);
 		cbResp := 5;
 ELSE
 	SendException(1);
@@ -271,7 +271,7 @@ END_VAR
 IF nOwner <> nUnitId OR NOT bReadyIn OR pPdu = 0 OR cbPdu < 1 OR cbPdu > GVL_MbParam.MB_ADU_SIZE THEN
 	RETURN;
 END_IF
-MEMCPY(ADR(aReq), pPdu, cbPdu);
+F_MbMemCpy(ADR(aReq), pPdu, cbPdu);
 cbReq      := cbPdu;
 cbResp     := 0;
 nCountdown := nDelayCycles;

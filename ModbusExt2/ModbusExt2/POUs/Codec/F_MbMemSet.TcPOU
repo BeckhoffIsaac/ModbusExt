@@ -1,0 +1,26 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="F_MbMemSet" Id="{1b8086fb-ca15-424e-9bfc-32205e36d322}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION F_MbMemSet : BOOL
+VAR_INPUT
+	pDst : POINTER TO BYTE;
+	b    : BYTE;
+	n    : UDINT;
+END_VAR
+VAR
+	i    : UDINT;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[F_MbMemSet := FALSE;
+IF pDst = 0 THEN
+	RETURN;
+END_IF
+IF n > 0 THEN
+	FOR i := 0 TO n - 1 DO
+		pDst[i] := b;
+	END_FOR
+END_IF
+F_MbMemSet := TRUE;]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

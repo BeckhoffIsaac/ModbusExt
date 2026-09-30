@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <POU Name="FB_Mb_TestGood" Id="{83a1e989-a86f-48f4-a90f-4a6e1e4a8281}" SpecialFunc="None">
+  <POU Name="FB_Mb_TestGood" Id="{99282851-0b5a-4804-8a30-28eb8b1a9696}" SpecialFunc="None">
     <Declaration><![CDATA[FUNCTION_BLOCK FB_Mb_TestGood EXTENDS FB_ModbusDevice
 VAR_INPUT
 	// Holding registers: 40001..40004 contiguous, 40010 within gap 8 -> one block
@@ -31,7 +31,7 @@ END_VAR]]></Declaration>
       <ST><![CDATA[Register();
 SUPER^();]]></ST>
     </Implementation>
-    <Method Name="FB_Init" Id="{fea2264a-c40e-4409-b221-df979594f906}">
+    <Method Name="FB_Init" Id="{3b0de115-57ee-4f9a-84f8-c81e950ca690}">
       <Declaration><![CDATA[//FB_Init is always available implicitly and it is used primarily for initialization.
 //The return value is not evaluated. For a specific influence, you can also declare the
 //methods explicitly and provide additional code there with the standard initialization
@@ -45,7 +45,7 @@ END_VAR]]></Declaration>
         <ST><![CDATA[Register();]]></ST>
       </Implementation>
     </Method>
-    <Method Name="FB_Reinit" Id="{599692e1-ff02-430a-955f-1f68126459bf}">
+    <Method Name="FB_Reinit" Id="{63e78a54-a9bc-45eb-bf61-bee6952a2e9c}">
       <Declaration><![CDATA[METHOD FB_Reinit: BOOL
 VAR_INPUT   
 END_VAR]]></Declaration>
@@ -53,7 +53,7 @@ END_VAR]]></Declaration>
         <ST><![CDATA[Register();]]></ST>
       </Implementation>
     </Method>
-    <Method Name="Register" Id="{11cb6493-f82c-4509-8253-578a064cf191}">
+    <Method Name="Register" Id="{4c78da75-a38f-4ad1-afcc-87d7392d5f59}">
       <Declaration><![CDATA[METHOD PRIVATE Register]]></Declaration>
       <Implementation>
         <ST><![CDATA[Profile(sModel := 'TestGood', eWordOrder := E_MbWordOrder.CDAB);

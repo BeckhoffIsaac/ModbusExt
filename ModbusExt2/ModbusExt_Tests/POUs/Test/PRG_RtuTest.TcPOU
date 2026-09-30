@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <POU Name="PRG_RtuTest" Id="{6eb35c57-1fd3-4ceb-bf20-536507dd5585}" SpecialFunc="None">
+  <POU Name="PRG_RtuTest" Id="{4dc3e7d0-979d-47aa-bd51-6254a2641573}" SpecialFunc="None">
     <Declaration><![CDATA[PROGRAM PRG_RtuTest
 VAR
 	stEl6In1  AT %I* : EL6inData22B;

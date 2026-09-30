@@ -3,149 +3,56 @@
   <PropertyGroup>
     <FileVersion>1.0.0.0</FileVersion>
     <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>{787c24a0-0be1-4879-ad20-ea0191533f41}</ProjectGuid>
+    <ProjectGuid>{29647151-bceb-43c1-bf26-4a1a292f9229}</ProjectGuid>
     <SubObjectsSortedByName>true</SubObjectsSortedByName>
     <DownloadApplicationInfo>true</DownloadApplicationInfo>
     <WriteProductVersion>false</WriteProductVersion>
     <GenerateTpy>false</GenerateTpy>
-    <Name>ModbusExt2</Name>
+    <Name>ModbusExt_Tests</Name>
     <ProgramVersion>3.1.4026.27</ProgramVersion>
-    <Application>{8b21d34e-0ec2-4f84-8841-54ff11ff0d1e}</Application>
-    <TypeSystem>{c686086c-039f-48c1-be05-6f978095f896}</TypeSystem>
-    <Implicit_Task_Info>{3a1a5655-fdf5-409f-87d1-0dab8bb63ede}</Implicit_Task_Info>
-    <Implicit_KindOfTask>{3585fe35-d9d7-4afd-ba68-ae0da49ddee7}</Implicit_KindOfTask>
-    <Implicit_Jitter_Distribution>{d7254cad-21dc-4186-b8d1-ac10ff915095}</Implicit_Jitter_Distribution>
-    <LibraryReferences>{09ee3116-e7c5-4cc0-af1d-d4f8486d3d0e}</LibraryReferences>
+    <Application>{d8c279f0-cfa2-4d29-b996-857f1ecf6227}</Application>
+    <TypeSystem>{265f2363-fc2c-44a4-9646-1b8bb5535733}</TypeSystem>
+    <Implicit_Task_Info>{931db09c-1880-4133-973e-18a566af115b}</Implicit_Task_Info>
+    <Implicit_KindOfTask>{62e5c69f-4dd1-42ff-a367-3dbf5cb93f70}</Implicit_KindOfTask>
+    <Implicit_Jitter_Distribution>{e75a20bb-4ee0-48e3-aea9-0eff4d641209}</Implicit_Jitter_Distribution>
+    <LibraryReferences>{40c52981-4260-469e-932e-84e9538fa118}</LibraryReferences>
     <Released>false</Released>
-    <ProjectVersion>0.1.0.0</ProjectVersion>
-    <Title>ModbusExt2</Title>
-    <Company>Beckhoff Automation</Company>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="DUTs\E_MbAddressing.TcDUT">
+    <Compile Include="PlcTask.TcTTO">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="DUTs\E_MbDevState.TcDUT">
+    <Compile Include="POUs\Test\FB_Mb_TestBad.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="DUTs\E_MbErrorClass.TcDUT">
+    <Compile Include="POUs\Test\FB_Mb_TestGood.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="DUTs\E_MbOp.TcDUT">
+    <Compile Include="POUs\Test\PRG_CodecTest.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="DUTs\E_MbPoll.TcDUT">
+    <Compile Include="POUs\Test\PRG_DeviceTest.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="DUTs\E_MbRegion.TcDUT">
+    <Compile Include="POUs\Test\PRG_RtuTest.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="DUTs\E_MbTcpConn.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\E_MbType.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\E_MbWordOrder.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\E_MbXferState.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\ST_MbBlock.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\ST_MbLog.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\ST_MbLogEntry.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\ST_MbParseResult.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\ST_MbPoint.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\ST_MbPointState.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\ST_MbProbe.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\ST_MbProfile.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\U_MbConv.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="GVLs\GVL_MbConst.TcGVL">
-      <SubType>Code</SubType>
-      <LinkAlways>true</LinkAlways>
-    </Compile>
-    <Compile Include="GVLs\GVL_MbParam.TcGVL">
-      <SubType>Code</SubType>
-      <LinkAlways>true</LinkAlways>
-    </Compile>
-    <Compile Include="POUs\Codec\F_MbCrc16.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Codec\F_MbDecode.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Codec\F_MbEncode.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Codec\F_MbExpectedResponseLength.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Codec\F_MbBuildRequest.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Codec\F_MbMemCpy.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Codec\F_MbMemSet.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Codec\F_MbParseResponse.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Codec\F_MbRound.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Codec\F_MbTimeToFt.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Device\FB_ModbusDevice.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Log\FB_MbLogExport.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Transport\FB_MbTransportMock.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Transport\FB_MbTransportRtu.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Transport\FB_MbTransportTcp.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Transport\I_MbTransport.TcIO">
+    <Compile Include="POUs\Test\PRG_TcpTest.TcPOU">
       <SubType>Code</SubType>
     </Compile>
   </ItemGroup>
   <ItemGroup>
     <Folder Include="DUTs" />
     <Folder Include="GVLs" />
+    <Folder Include="POUs\Profiles" />
+    <Folder Include="POUs\Test" />
     <Folder Include="POUs" />
-    <Folder Include="POUs\Codec" />
-    <Folder Include="POUs\Device" />
-    <Folder Include="POUs\Log" />
-    <Folder Include="POUs\Transport" />
   </ItemGroup>
   <ItemGroup>
+    <PlaceholderReference Include="ModbusExt2">
+      <DefaultResolution>ModbusExt2, * (Beckhoff Automation)</DefaultResolution>
+      <Namespace>ModbusExt2</Namespace>
+    </PlaceholderReference>
     <PlaceholderReference Include="Tc2_SerialCom">
       <DefaultResolution>Tc2_SerialCom, * (Beckhoff Automation GmbH)</DefaultResolution>
       <Namespace>Tc2_SerialCom</Namespace>
@@ -158,14 +65,6 @@
       <DefaultResolution>Tc2_System, * (Beckhoff Automation GmbH)</DefaultResolution>
       <Namespace>Tc2_System</Namespace>
     </PlaceholderReference>
-    <PlaceholderReference Include="Tc2_TcpIp">
-      <DefaultResolution>Tc2_TcpIp, * (Beckhoff Automation GmbH)</DefaultResolution>
-      <Namespace>Tc2_TcpIp</Namespace>
-    </PlaceholderReference>
-    <PlaceholderReference Include="Tc2_Utilities">
-      <DefaultResolution>Tc2_Utilities, * (Beckhoff Automation GmbH)</DefaultResolution>
-      <Namespace>Tc2_Utilities</Namespace>
-    </PlaceholderReference>
     <PlaceholderReference Include="Tc3_Module">
       <DefaultResolution>Tc3_Module, * (Beckhoff Automation GmbH)</DefaultResolution>
       <Namespace>Tc3_Module</Namespace>
@@ -173,7 +72,7 @@
     </PlaceholderReference>
   </ItemGroup>
   <ItemGroup>
-    <None Include="ModbusExt2.tmc">
+    <None Include="ModbusExt_Tests.tmc">
       <SubType>Content</SubType>
     </None>
   </ItemGroup>
