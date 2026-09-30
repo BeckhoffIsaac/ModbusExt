@@ -116,6 +116,9 @@
     <Compile Include="POUs\Device\FB_ModbusDevice.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="POUs\Log\FB_MbLogExport.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="POUs\MAIN.TcPOU">
       <SubType>Code</SubType>
     </Compile>
@@ -134,7 +137,13 @@
     <Compile Include="POUs\Test\PRG_DeviceTest.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="POUs\Test\PRG_RtuTest.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="POUs\Test\PRG_TcpTest.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\Transport\FB_MbTransportRtu.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="POUs\Transport\FB_MbTransportTcp.TcPOU">
@@ -150,6 +159,7 @@
     <Folder Include="POUs" />
     <Folder Include="POUs\Codec" />
     <Folder Include="POUs\Device" />
+    <Folder Include="POUs\Log" />
     <Folder Include="POUs\Transport" />
     <Folder Include="POUs\Test" />
   </ItemGroup>

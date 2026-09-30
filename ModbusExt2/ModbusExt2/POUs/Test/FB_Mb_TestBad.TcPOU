@@ -12,7 +12,8 @@ VAR_INPUT
 	G : ST_MbPoint := (nAddr := 10001, eType := E_MbType.Int16);                      // integer type on a bit region
 END_VAR]]></Declaration>
     <Implementation>
-      <ST><![CDATA[SUPER^();]]></ST>
+      <ST><![CDATA[Register();
+SUPER^();]]></ST>
     </Implementation>
     <Method Name="FB_Init" Id="{9ccf2a59-ae49-46f9-bfd4-35f087681290}">
       <Declaration><![CDATA[//FB_Init is always available implicitly and it is used primarily for initialization.

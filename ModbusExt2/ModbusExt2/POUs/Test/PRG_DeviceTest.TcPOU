@@ -8,6 +8,7 @@ VAR
 	fbBad          : FB_Mb_TestBad;
 	stLogGood      : ST_MbLog;
 	stLogBad       : ST_MbLog;
+	fbExport	   : FB_MbLogExport;
 	
 	fbGood2   : FB_Mb_TestGood;
 	stLogGood2 : ST_MbLog;
@@ -23,7 +24,9 @@ VAR
 	bReadPass      : BOOL;
 	bWritePass     : BOOL;
 	bHandshakePass : BOOL;
+	bOnlineChangePass : BOOL;
 	nWriteStep     : UINT;
+	bExport		   : BOOL;
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[IF NOT bMemInit THEN
@@ -44,6 +47,10 @@ END_VAR]]></Declaration>
 	fbMock.bExcOnRange   := TRUE;
 	fbMock.nExcOffset    := 5;                                          // Undefined register inside the first HR block's gap
 END_IF
+
+fbMock.aHolding[399] := 55;
+fbMock.aHolding[409] := 56;
+fbMock.aHolding[419] := 57;
 
 fbGood(itfTransport := fbMock, bEnable := TRUE, refLog := stLogGood);
 fbBad(bEnable := TRUE, refLog := stLogBad);
@@ -66,14 +73,16 @@ bArbPass := fbGood2.bOnline AND fbGood2.Hr1.bValid AND fbGood2.Ir1.bValid
             AND (nReq2 > nReq1 / 2) AND (nReq1 > nReq2 / 2);
 
 // Config
-bGoodPass  := (NOT fbGood.bConfigError) AND (fbGood.nPoints = 13);
+bGoodPass  := (NOT fbGood.bConfigError) AND (fbGood.nPoints = 16);
 bBadPass   := fbBad.bConfigError AND (fbBad.nBlocks = 0) AND (stLogBad.nCount = 7);
 
 // Self-split: 7 blocks -> 9, first two log entries are the two exceptions
-bSplitPass := (fbGood.nBlocks = 9)
+bSplitPass := (fbGood.nBlocks = 12)
               AND (stLogGood.aEntries[0].eClass = E_MbErrorClass.Exception)
               AND (stLogGood.aEntries[1].eClass = E_MbErrorClass.Exception);
 
+bOnlineChangePass := fbGood.Hr8.bValid AND (fbGood.Hr8.fValue = 55) AND (fbGood.Hr1.fValue = 777);
+			  
 // Reads (latched: the writes below change Hr1/Hr2/Hr3/Coil2 afterwards)
 bReadPass := bReadPass OR (fbGood.bOnline
 	AND fbGood.Hr1.bValid AND (fbGood.Hr1.fValue = 1234)
@@ -120,7 +129,9 @@ CASE nWriteStep OF
 			bHandshakePass := TRUE;
 			nWriteStep := 3;
 		END_IF
-END_CASE]]></ST>
+END_CASE
+
+fbExport(sPath := 'C:\ModbusExt\TestGood.csv', bExecute := bExport, refLog := stLogGood);]]></ST>
     </Implementation>
   </POU>
 </TcPlcObject>

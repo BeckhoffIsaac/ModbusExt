@@ -3,6 +3,7 @@
   <DUT Name="E_MbOp" Id="{800f8a0d-d3f1-4d1e-a73e-c29985a03eda}">
     <Declaration><![CDATA[{attribute 'qualified_only'}
 {attribute 'strict'}
+{attribute 'to_string'}
 TYPE E_MbOp :
 (
 	Read := 0,

@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="PRG_RtuTest" Id="{6eb35c57-1fd3-4ceb-bf20-536507dd5585}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM PRG_RtuTest
+VAR
+	stEl6In1  AT %I* : EL6inData22B;
+	stEl6Out1 AT %Q* : EL6outData22B;
+	fbRs485   : FB_MbTransportRtu;
+	fbDev     : FB_Mb_TestGood;
+	stLog     : ST_MbLog;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[fbRs485(pComIn := ADR(stEl6In1), pComOut := ADR(stEl6Out1), nSizeComIn := SIZEOF(stEl6In1));
+fbDev(itfTransport := fbRs485, nUnitId := 1, bEnable := TRUE, refLog := stLog);]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

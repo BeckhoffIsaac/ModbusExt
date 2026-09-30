@@ -22,6 +22,7 @@ VAR_OUTPUT
 	stProbe        : ST_MbProbe;
 	nPoints        : UINT;
 	nBlocks        : UINT;
+	nLogDropped    : UDINT;
 END_VAR
 VAR
 	stProfile      : ST_MbProfile;
@@ -48,6 +49,8 @@ VAR
 	stParse        : ST_MbParseResult;
 	nCurWrite      : UINT;
 	bWriteTx       : BOOL;              // Current transaction is a write
+	nRegCursor     : UINT;
+	bRegChanged    : BOOL;
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[fbSysTime();
@@ -55,6 +58,13 @@ tNow := SHL(DWORD_TO_ULINT(fbSysTime.timeHiDW), 32) + DWORD_TO_ULINT(fbSysTime.t
 
 IF NOT bEnable THEN
 	RETURN;
+END_IF
+
+// The profile registered its points just before SUPER^(); act only if the table changed
+IF bRegChanged OR nRegCursor <> nPoints THEN
+	nPoints     := nRegCursor;
+	bRegChanged := FALSE;
+	bInitDone   := FALSE;
 END_IF
 
 IF NOT bInitDone THEN
@@ -85,16 +95,17 @@ VAR_INPUT
 	sName   : STRING;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF nPoints >= GVL_MbParam.MB_MAX_POINTS THEN
+        <ST><![CDATA[IF nRegCursor >= GVL_MbParam.MB_MAX_POINTS THEN
 	bAddOverflow := TRUE;
 	RETURN;
 END_IF
-
-aState[nPoints].pPoint := ADR(stPoint);
-aState[nPoints].sName  := sName;
-stPoint.nIndex         := nPoints;
-nPoints                := nPoints + 1;
-bInitDone              := FALSE;]]></ST>
+IF aState[nRegCursor].pPoint <> ADR(stPoint) OR aState[nRegCursor].sName <> sName THEN
+	aState[nRegCursor].pPoint := ADR(stPoint);
+	aState[nRegCursor].sName  := sName;
+	bRegChanged := TRUE;
+END_IF
+stPoint.nIndex := nRegCursor;
+nRegCursor     := nRegCursor + 1;]]></ST>
       </Implementation>
     </Method>
     <Method Name="BuildBlocks" Id="{3928ccad-47f7-446b-bf98-afb4958d10cb}">
@@ -582,24 +593,30 @@ VAR_INPUT
 	bFc16Only       : BOOL := FALSE;
 	bStringByteSwap : BOOL := FALSE;
 	tSlowPoll       : TIME := T#5S;
+END_VAR
+VAR
+	sModelTrunc : STRING(GVL_MbParam.MB_NAME_LEN);
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[// First call in a profile's Register(). Resets the point table so Register() is
-// safe to run again from FB_reinit after an online change.
-stProfile.sModel          := sModel;
-stProfile.eWordOrder      := eWordOrder;
-stProfile.eAddressing     := eAddressing;
-stProfile.nMaxRegsPerRead := LIMIT(1, nMaxRegsPerRead, GVL_MbConst.MAX_READ_REGS);
-stProfile.nMaxGap         := nMaxGap;
-stProfile.bFc6Only        := bFc6Only;
-stProfile.bFc16Only       := bFc16Only;
-stProfile.bStringByteSwap := bStringByteSwap;
-stProfile.tSlowPoll       := tSlowPoll;
-
-nPoints      := 0;
-nBlocks      := 0;
-bAddOverflow := FALSE;
-bInitDone    := FALSE;]]></ST>
+        <ST><![CDATA[// Called every cycle from the profile's body. Only a real change triggers re-initialization.
+sModelTrunc := sModel;
+IF stProfile.sModel <> sModelTrunc OR stProfile.eWordOrder <> eWordOrder OR stProfile.eAddressing <> eAddressing
+   OR stProfile.nMaxRegsPerRead <> LIMIT(1, nMaxRegsPerRead, GVL_MbConst.MAX_READ_REGS)
+   OR stProfile.nMaxGap <> nMaxGap OR stProfile.bFc6Only <> bFc6Only OR stProfile.bFc16Only <> bFc16Only
+   OR stProfile.bStringByteSwap <> bStringByteSwap OR stProfile.tSlowPoll <> tSlowPoll THEN
+	stProfile.sModel          := sModelTrunc;
+	stProfile.eWordOrder      := eWordOrder;
+	stProfile.eAddressing     := eAddressing;
+	stProfile.nMaxRegsPerRead := LIMIT(1, nMaxRegsPerRead, GVL_MbConst.MAX_READ_REGS);
+	stProfile.nMaxGap         := nMaxGap;
+	stProfile.bFc6Only        := bFc6Only;
+	stProfile.bFc16Only       := bFc16Only;
+	stProfile.bStringByteSwap := bStringByteSwap;
+	stProfile.tSlowPoll       := tSlowPoll;
+	bRegChanged := TRUE;
+END_IF
+nRegCursor   := 0;
+bAddOverflow := FALSE;]]></ST>
       </Implementation>
     </Method>
     <Method Name="RecomputeBlockRange" Id="{e085cd21-61b9-40e5-ac8e-9ed0a58cab64}">
@@ -1146,7 +1163,8 @@ VAR
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[IF NOT __ISVALIDREF(refLog) THEN
-	RETURN;
+	nLogDropped := nLogDropped + 1;
+    RETURN;
 END_IF
 
 stEntry.tTime    := tNow;

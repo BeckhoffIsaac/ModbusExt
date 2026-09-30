@@ -3,6 +3,7 @@
   <DUT Name="E_MbRegion" Id="{334fca92-b17e-4248-856f-9d7792218441}">
     <Declaration><![CDATA[{attribute 'qualified_only'}
 {attribute 'strict'}
+{attribute 'to_string'}
 TYPE E_MbRegion :
 (
 	Auto := 0,

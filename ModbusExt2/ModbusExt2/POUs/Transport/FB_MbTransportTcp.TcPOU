@@ -132,8 +132,7 @@ CASE eConn OF
 END_CASE]]></ST>
     </Implementation>
     <Method Name="Abort" Id="{2ab0650f-d885-43b5-ab1e-21ba80ba3a59}">
-      <Declaration><![CDATA[{warning 'Add method implementation '}
-METHOD Abort
+      <Declaration><![CDATA[METHOD Abort
 VAR_INPUT
 	nUnitId	: USINT;
 END_VAR
@@ -147,8 +146,7 @@ END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="Acquire" Id="{40aa17fc-caa7-4b08-b197-37c7052f2593}">
-      <Declaration><![CDATA[{warning 'Add method implementation '}
-METHOD Acquire : BOOL
+      <Declaration><![CDATA[METHOD Acquire : BOOL
 VAR_INPUT
 	(* Caller's unit ID doubles as the owner key. TRUE = you hold the bus.*)
 	nUnitId	: USINT;
@@ -181,8 +179,7 @@ bRecvArmed := TRUE;]]></ST>
       </Implementation>
     </Method>
     <Property Name="bReady" Id="{3b89d744-d671-4225-ad89-3154e3dde48a}">
-      <Declaration><![CDATA[{warning 'Add property implementation'}
-PROPERTY bReady : BOOL
+      <Declaration><![CDATA[PROPERTY bReady : BOOL
 ]]></Declaration>
       <Get Name="Get" Id="{e8364e13-b20c-41a2-aa95-5f80fbcd9c02}">
         <Declaration><![CDATA[]]></Declaration>
@@ -192,8 +189,7 @@ PROPERTY bReady : BOOL
       </Get>
     </Property>
     <Property Name="cbResponsePdu" Id="{336a0840-d3cf-4f48-a91e-1544d427bb46}">
-      <Declaration><![CDATA[{warning 'Add property implementation'}
-PROPERTY cbResponsePdu : UINT
+      <Declaration><![CDATA[PROPERTY cbResponsePdu : UINT
 ]]></Declaration>
       <Get Name="Get" Id="{936b3e14-7ea2-4cae-a2a5-c5233e002808}">
         <Declaration><![CDATA[]]></Declaration>
@@ -214,8 +210,7 @@ eConn := E_MbTcpConn.Closing;]]></ST>
       </Implementation>
     </Method>
     <Property Name="eLastError" Id="{07586c2e-9ac5-4821-9851-24b9c5724f79}">
-      <Declaration><![CDATA[{warning 'Add property implementation'}
-PROPERTY eLastError : E_MbErrorClass
+      <Declaration><![CDATA[PROPERTY eLastError : E_MbErrorClass
 ]]></Declaration>
       <Get Name="Get" Id="{49f470cc-e1ca-445d-a676-90d9a02785de}">
         <Declaration><![CDATA[]]></Declaration>
@@ -272,16 +267,14 @@ END_WHILE]]></ST>
       </Implementation>
     </Method>
     <Method Name="Poll" Id="{9383ac44-c6bf-412b-b7be-efa6508e30ae}">
-      <Declaration><![CDATA[{warning 'Add method implementation '}
-METHOD Poll : E_MbXferState
+      <Declaration><![CDATA[METHOD Poll : E_MbXferState
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[Poll := eState;   // The body does the work]]></ST>
       </Implementation>
     </Method>
     <Property Name="pResponsePdu" Id="{ffeec4fd-38eb-4752-8fb3-6e3b77ee5957}">
-      <Declaration><![CDATA[{warning 'Add property implementation'}
-PROPERTY pResponsePdu : POINTER TO BYTE
+      <Declaration><![CDATA[PROPERTY pResponsePdu : POINTER TO BYTE
 ]]></Declaration>
       <Get Name="Get" Id="{c67d0220-71c2-4447-b179-4b02d1b2d675}">
         <Declaration><![CDATA[]]></Declaration>
@@ -306,8 +299,7 @@ END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="Release" Id="{94402f7a-370d-4c48-a6d6-d18877178861}">
-      <Declaration><![CDATA[{warning 'Add method implementation '}
-METHOD Release
+      <Declaration><![CDATA[METHOD Release
 VAR_INPUT
 	nUnitId	: USINT;
 END_VAR
@@ -322,8 +314,7 @@ END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="Send" Id="{09eec9af-4704-4c29-9dd3-707185cbb51d}">
-      <Declaration><![CDATA[{warning 'Add method implementation '}
-METHOD Send : BOOL
+      <Declaration><![CDATA[METHOD Send : BOOL
 VAR_INPUT
 	nUnitId	: USINT;
 	pPdu	: POINTER TO BYTE;

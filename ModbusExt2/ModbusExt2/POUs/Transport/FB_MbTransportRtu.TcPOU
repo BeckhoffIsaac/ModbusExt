@@ -1,0 +1,302 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_MbTransportRtu" Id="{e782c55b-01b8-48b3-9a8b-e0b9c262a064}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_MbTransportRtu IMPLEMENTS I_MbTransport
+VAR_INPUT
+	eMode       : ComSerialLineMode_t := SERIALLINEMODE_EL6_22B;   // Tc2_SerialCom line mode for the linked terminal
+	pComIn      : POINTER TO ARRAY[0..65] OF BYTE;   // ADR() of the linked input struct, e.g. EL6inData22B;                                 // ADR() of the linked input struct, e.g. EL6inData22B
+	pComOut     : POINTER TO ARRAY[0..65] OF BYTE;   // ADR() of the linked output struct, e.g. EL6outData22B                                 // ADR() of the linked output struct, e.g. EL6outData22B
+	nSizeComIn  : UINT;                                  // SIZEOF() of the input struct
+	tInterFrame : TIME := T#10MS;                        // Bus idle enforced between transactions
+	tGap        : TIME := T#20MS;                        // Silence that ends a frame of unexpected length
+	bEnable     : BOOL := TRUE;
+END_VAR
+VAR_OUTPUT
+	bLineOk     : BOOL;
+	eLineErr    : ComError_t;
+	nOwner      : USINT;
+	nTxCount    : UDINT;
+	nRxCount    : UDINT;
+	nCrcErrors  : UDINT;
+END_VAR
+VAR
+	fbLine      : SerialLineControl;
+	TxBuffer    : ComBuffer;
+	RxBuffer    : ComBuffer;
+	fbSendByte  : SendByte;
+	fbRecvByte  : ReceiveByte;
+	fbSysTime   : GETSYSTEMTIME;
+	tNow        : ULINT;
+
+	eState      : E_MbXferState;
+	eErr        : E_MbErrorClass;
+	nUnitReq    : USINT;
+	nExpectedPdu : UINT;
+	tTimeoutTicks : ULINT;
+	tDeadline   : ULINT;
+	tNextTxAllowed : ULINT;
+	tLastByte   : ULINT;
+	bTxStarted  : BOOL;
+
+	aTx         : ARRAY[0..GVL_MbParam.MB_ADU_SIZE-1] OF BYTE;   // unit id + PDU + CRC
+	cbTx        : UINT;
+	nTxSent     : UINT;
+	aRx         : ARRAY[0..GVL_MbParam.MB_ADU_SIZE-1] OF BYTE;
+	cbRx        : UINT;
+	aResp       : ARRAY[0..GVL_MbParam.MB_ADU_SIZE-1] OF BYTE;   // PDU handed to the device
+	cbResp      : UINT;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[fbSysTime();
+tNow := SHL(DWORD_TO_ULINT(fbSysTime.timeHiDW), 32) + DWORD_TO_ULINT(fbSysTime.timeLoDW);
+
+IF pComIn = 0 OR pComOut = 0 OR nSizeComIn = 0 THEN
+	bLineOk := FALSE;
+	RETURN;
+END_IF
+
+// Moves up to 22 bytes per cycle each way between the terminal image and the ComBuffers
+fbLine(Mode := eMode, pComIn := pComIn, pComOut := pComOut, SizeComIn := UINT_TO_INT(nSizeComIn),
+       TxBuffer := TxBuffer, RxBuffer := RxBuffer);
+bLineOk  := bEnable AND NOT fbLine.Error;
+eLineErr := fbLine.ErrorID;
+
+IF eState <> E_MbXferState.Busy THEN
+	Drain();                              // Keep the receive buffer empty between transactions
+	RETURN;
+END_IF
+IF fbLine.Error THEN
+	eState := E_MbXferState.Error;
+	eErr   := E_MbErrorClass.Transport;
+	RETURN;
+END_IF
+
+// 1. Respect the inter-frame gap, then hand the request to the line
+IF NOT bTxStarted THEN
+	IF tNow < tNextTxAllowed THEN
+		RETURN;
+	END_IF
+	Drain();
+	bTxStarted := TRUE;
+	tDeadline  := tNow + tTimeoutTicks;   // Timeout counts from the real transmission start
+	tLastByte  := tNow;
+END_IF
+WHILE nTxSent < cbTx DO
+	fbSendByte(SendByte := aTx[nTxSent], TxBuffer := TxBuffer);
+	IF fbSendByte.Busy THEN
+		EXIT;                             // Buffer full; continue next cycle
+	END_IF
+	nTxSent := nTxSent + 1;
+END_WHILE
+IF nTxSent < cbTx THEN
+	RETURN;
+END_IF
+
+// 2. Collect response bytes
+Collect();
+
+// 3. End of frame: by expected length, by exception frame, or by silence
+IF cbRx >= 2 AND_THEN (aRx[1] AND GVL_MbConst.EXC_FLAG) <> 0 THEN
+	IF cbRx >= 5 THEN
+		Complete(5);
+	END_IF
+ELSIF nExpectedPdu > 0 AND cbRx >= 1 + nExpectedPdu + 2 THEN
+	Complete(1 + nExpectedPdu + 2);
+ELSIF cbRx >= 5 AND tNow - tLastByte >= F_MbTimeToFt(tGap) THEN
+	Complete(cbRx);                       // Unexpected length; the CRC decides
+END_IF
+
+IF eState = E_MbXferState.Busy AND tNow >= tDeadline THEN
+	eState         := E_MbXferState.Timeout;
+	tNextTxAllowed := tNow + F_MbTimeToFt(tInterFrame);
+END_IF]]></ST>
+    </Implementation>
+    <Method Name="Abort" Id="{13b77891-b615-424d-8fcc-cfda63297303}">
+      <Declaration><![CDATA[METHOD Abort
+VAR_INPUT
+	nUnitId	: USINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF nOwner = nUnitId THEN
+	eState         := E_MbXferState.Idle;
+	cbRx           := 0;
+	cbResp         := 0;
+	tNextTxAllowed := tNow + F_MbTimeToFt(tInterFrame);   // Let a late answer die on the wire
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Acquire" Id="{ac76ee08-d223-4981-8f68-b5fa27a8d8c9}">
+      <Declaration><![CDATA[METHOD Acquire : BOOL
+VAR_INPUT
+	(* Caller's unit ID doubles as the owner key. TRUE = you hold the bus.*)
+	nUnitId	: USINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF nUnitId = 0 THEN
+	Acquire := FALSE;                     // Broadcast has no response; not supported
+	RETURN;
+END_IF
+IF nOwner = 0 THEN
+	nOwner := nUnitId;
+END_IF
+Acquire := (nOwner = nUnitId);]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="bReady" Id="{59028900-adbd-4195-8a00-b534569d7b03}">
+      <Declaration><![CDATA[PROPERTY bReady : BOOL]]></Declaration>
+      <Get Name="Get" Id="{304a9117-6eec-4964-aee9-9ce048d5645f}">
+        <Declaration><![CDATA[]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[bReady := bLineOk;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="cbResponsePdu" Id="{247d9dc6-a8ba-449e-8aea-e978f3421fe9}">
+      <Declaration><![CDATA[PROPERTY cbResponsePdu : UINT]]></Declaration>
+      <Get Name="Get" Id="{66fee57b-3510-428b-929f-8f7dd97b9110}">
+        <Declaration><![CDATA[]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[cbResponsePdu := cbResp;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Method Name="Collect" Id="{006d26c5-3424-495b-acf9-af453b3d91e2}">
+      <Declaration><![CDATA[METHOD PRIVATE Collect]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[WHILE cbRx < GVL_MbParam.MB_ADU_SIZE DO
+	fbRecvByte(RxBuffer := RxBuffer);
+	IF NOT fbRecvByte.ByteReceived THEN
+		EXIT;
+	END_IF
+	aRx[cbRx] := fbRecvByte.ReceivedByte;
+	cbRx      := cbRx + 1;
+	tLastByte := tNow;
+END_WHILE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Complete" Id="{7426460b-9d58-48db-b059-901bb1c5194f}">
+      <Declaration><![CDATA[METHOD PRIVATE Complete
+VAR_INPUT
+	n    : UINT;   // Frame length including unit id and CRC
+END_VAR
+VAR
+	wCrc : WORD;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[tNextTxAllowed := tNow + F_MbTimeToFt(tInterFrame);
+IF aRx[0] <> USINT_TO_BYTE(nUnitReq) THEN
+	eState := E_MbXferState.Error;
+	eErr   := E_MbErrorClass.Malformed;      // Answer from the wrong unit
+	RETURN;
+END_IF
+wCrc := F_MbCrc16(ADR(aRx), n - 2);
+IF aRx[n - 2] <> WORD_TO_BYTE(wCrc) OR aRx[n - 1] <> WORD_TO_BYTE(SHR(wCrc, 8)) THEN
+	nCrcErrors := nCrcErrors + 1;
+	eState     := E_MbXferState.Error;
+	eErr       := E_MbErrorClass.Crc;
+	RETURN;
+END_IF
+cbResp := n - 3;
+MEMCPY(ADR(aResp), ADR(aRx[1]), cbResp);
+eState   := E_MbXferState.Done;
+nRxCount := nRxCount + 1;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Drain" Id="{803e664f-24bd-49da-a362-5996dca181fd}">
+      <Declaration><![CDATA[METHOD PRIVATE Drain
+VAR
+	n : UINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Discard whatever is sitting in the receive buffer (bounded loop)
+FOR n := 1 TO 300 DO
+	fbRecvByte(RxBuffer := RxBuffer);
+	IF NOT fbRecvByte.ByteReceived THEN
+		EXIT;
+	END_IF
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="eLastError" Id="{726382e9-9fcf-4b8e-8af2-dfee33531bac}">
+      <Declaration><![CDATA[PROPERTY eLastError : E_MbErrorClass]]></Declaration>
+      <Get Name="Get" Id="{4c5e624d-1e4d-4920-884c-6d996654e067}">
+        <Declaration><![CDATA[]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[eLastError := eErr;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Method Name="Poll" Id="{687c5126-d7e1-4f15-9e40-e26473e24e62}">
+      <Declaration><![CDATA[METHOD Poll : E_MbXferState
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Poll := eState;]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="pResponsePdu" Id="{33959f6e-7aec-44dc-a6c7-6dd2a40b1ce4}">
+      <Declaration><![CDATA[PROPERTY pResponsePdu : POINTER TO BYTE]]></Declaration>
+      <Get Name="Get" Id="{5ba6ab3e-9b35-4e49-8e11-e88c5341906e}">
+        <Declaration><![CDATA[]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[pResponsePdu := ADR(aResp);]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Method Name="Release" Id="{f8e98f32-33ec-4a91-bf06-c684836f6663}">
+      <Declaration><![CDATA[METHOD Release
+VAR_INPUT
+	nUnitId	: USINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF nOwner = nUnitId THEN
+	nOwner := 0;
+	IF eState <> E_MbXferState.Busy THEN
+		eState := E_MbXferState.Idle;
+	END_IF
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Send" Id="{35181d38-4c71-472e-a030-3012e709e63f}">
+      <Declaration><![CDATA[METHOD Send : BOOL
+VAR_INPUT
+	nUnitId	: USINT;
+	pPdu	: POINTER TO BYTE;
+	cbPdu	: UINT;
+	(* From F_MbExpectedResponseLength; RTU uses it to detect end of frame*)
+	nExpectedPduLen	: UINT;
+	tTimeout	: TIME;
+	wCrc : WORD;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Send := FALSE;
+IF nOwner <> nUnitId OR NOT bLineOk OR eState = E_MbXferState.Busy
+   OR pPdu = 0 OR cbPdu < 1 OR cbPdu > GVL_MbParam.MB_ADU_SIZE - 3 THEN
+	RETURN;
+END_IF
+
+aTx[0] := USINT_TO_BYTE(nUnitId);
+MEMCPY(ADR(aTx[1]), pPdu, cbPdu);
+wCrc := F_MbCrc16(ADR(aTx), cbPdu + 1);
+aTx[cbPdu + 1] := WORD_TO_BYTE(wCrc);              // Low byte first on the wire
+aTx[cbPdu + 2] := WORD_TO_BYTE(SHR(wCrc, 8));
+cbTx := cbPdu + 3;
+
+nTxSent       := 0;
+bTxStarted    := FALSE;
+cbRx          := 0;
+cbResp        := 0;
+nUnitReq      := nUnitId;
+nExpectedPdu  := nExpectedPduLen;
+tTimeoutTicks := F_MbTimeToFt(tTimeout);
+eErr          := E_MbErrorClass.None;
+eState        := E_MbXferState.Busy;
+nTxCount      := nTxCount + 1;
+Send := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

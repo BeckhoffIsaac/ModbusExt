@@ -15,6 +15,9 @@ VAR_INPUT
 	// Off -> no block
 	Hr7    : ST_MbPoint := (nAddr := 40200, ePoll := E_MbPoll.Off);
 	// Far away -> third fast HR block
+	Hr8    : ST_MbPoint := (nAddr := 40400);
+	Hr9    : ST_MbPoint := (nAddr := 40410);
+	Hr10   : ST_MbPoint := (nAddr := 40420);
 	Status : ST_MbPoint := (nAddr := 40300, eType := E_MbType.RegisterBit, nBit := 3);
 	// Input registers, contiguous -> one block
 	Ir1    : ST_MbPoint := (nAddr := 30001, eType := E_MbType.Real32);
@@ -25,7 +28,8 @@ VAR_INPUT
 	Di1    : ST_MbPoint := (nAddr := 10001);
 END_VAR]]></Declaration>
     <Implementation>
-      <ST><![CDATA[SUPER^();]]></ST>
+      <ST><![CDATA[Register();
+SUPER^();]]></ST>
     </Implementation>
     <Method Name="FB_Init" Id="{fea2264a-c40e-4409-b221-df979594f906}">
       <Declaration><![CDATA[//FB_Init is always available implicitly and it is used primarily for initialization.
@@ -60,6 +64,9 @@ AddPoint(Hr4, 'Hr4');
 AddPoint(Hr5, 'Hr5');
 AddPoint(Hr6, 'Hr6');
 AddPoint(Hr7, 'Hr7');
+AddPoint(Hr8, 'Hr8');
+AddPoint(Hr9, 'Hr9');
+AddPoint(Hr10, 'Hr10');
 AddPoint(Status, 'Status');
 AddPoint(Ir1, 'Ir1');
 AddPoint(Ir2, 'Ir2');

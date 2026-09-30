@@ -3,6 +3,7 @@
   <DUT Name="E_MbErrorClass" Id="{ba77ce8c-449b-4577-a0a4-517118165deb}">
     <Declaration><![CDATA[{attribute 'qualified_only'}
 {attribute 'strict'}
+{attribute 'to_string'}
 TYPE E_MbErrorClass :
 (
 	None := 0,
