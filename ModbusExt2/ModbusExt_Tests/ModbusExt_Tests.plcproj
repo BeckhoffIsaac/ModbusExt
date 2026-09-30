@@ -34,6 +34,9 @@
     <Compile Include="POUs\Test\PRG_DeviceTest.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="POUs\Test\PRG_LogWriterTest.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="POUs\Test\PRG_RtuTest.TcPOU">
       <SubType>Code</SubType>
     </Compile>

@@ -13,6 +13,10 @@ VAR_GLOBAL CONSTANT
 	MB_ADU_SIZE                  : UINT := 260;
 	MB_LOG_REPEAT_INTERVAL       : TIME := T#5M;
 	MB_OFFLINE_RETRY             : TIME := T#5S;
+	MB_LOG_DIR                   : STRING(255) := 'C:\ModbusExt\Logs\';
+	MB_LOG_FILE_MAX_BYTES        : UDINT := 2000000;   // Rotate to <name>.1.csv above this
+	MB_LOG_FILE_BATCH            : USINT := 20;        // Entries per open/close
+	MB_LOG_FILE_RETRY            : TIME  := T#10S;     // Backoff after a file error
 END_VAR]]></Declaration>
   </GVL>
 </TcPlcObject>

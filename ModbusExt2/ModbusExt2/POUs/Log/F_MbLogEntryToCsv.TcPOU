@@ -1,0 +1,30 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="F_MbLogEntryToCsv" Id="{3dd236d5-aeea-484c-9728-4efa4ed8164e}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION F_MbLogEntryToCsv : STRING(255)
+VAR_INPUT
+	stE  : ST_MbLogEntry;
+END_VAR
+VAR
+	ft   : T_FILETIME;
+	sOut : STRING(255);
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[ft.dwLowDateTime  := ULINT_TO_DWORD(stE.tTime);
+ft.dwHighDateTime := ULINT_TO_DWORD(SHR(stE.tTime, 32));
+sOut := SYSTEMTIME_TO_STRING(FILETIME_TO_SYSTEMTIME(ft));
+sOut := CONCAT(sOut, ',');  sOut := CONCAT(sOut, stE.sName);
+sOut := CONCAT(sOut, ',');  sOut := CONCAT(sOut, USINT_TO_STRING(stE.nUnitId));
+sOut := CONCAT(sOut, ',');  sOut := CONCAT(sOut, TO_STRING(stE.eRegion));
+sOut := CONCAT(sOut, ',');  sOut := CONCAT(sOut, UDINT_TO_STRING(stE.nAddr));
+sOut := CONCAT(sOut, ',');  sOut := CONCAT(sOut, BYTE_TO_STRING(stE.nFc));
+sOut := CONCAT(sOut, ',');  sOut := CONCAT(sOut, TO_STRING(stE.eOp));
+sOut := CONCAT(sOut, ',');  sOut := CONCAT(sOut, TO_STRING(stE.eClass));
+sOut := CONCAT(sOut, ',');  sOut := CONCAT(sOut, BYTE_TO_STRING(stE.nExcCode));
+sOut := CONCAT(sOut, ',');  sOut := CONCAT(sOut, USINT_TO_STRING(stE.nRetries));
+sOut := CONCAT(sOut, ',');  sOut := CONCAT(sOut, UDINT_TO_STRING(stE.nRepeat));
+sOut := CONCAT(sOut, '$N');
+F_MbLogEntryToCsv := sOut;]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

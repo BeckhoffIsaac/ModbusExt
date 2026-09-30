@@ -1,0 +1,260 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_MbLogWriter" Id="{7c5aabe6-50c8-42b2-995d-308bfa32c2d8}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_MbLogWriter
+VAR_INPUT
+	bEnable   : BOOL := TRUE;
+	sDir      : STRING(255);              // Folder; trailing backslash optional; created if missing
+	sName     : STRING(80);               // File name without extension
+	pLog      : POINTER TO ST_MbLog;      // Ring to drain; the owner refreshes this every cycle
+	tNow      : ULINT;                    // FILETIME from the owner
+END_VAR
+VAR_OUTPUT
+	bError    : BOOL;                     // File trouble; retried every MB_LOG_FILE_RETRY
+	nErrId    : UDINT;
+	nWritten  : UDINT;                    // Entries appended since start
+	nDropped  : UDINT;                    // Entries that scrolled out of the ring unwritten
+	sFile     : STRING(255);
+END_VAR
+VAR
+	eStep        : E_MbLogWriterStep;
+	fbMkDir      : FB_CreateDir;
+	fbOpen       : FB_FileOpen;
+	fbSeek       : FB_FileSeek;
+	fbTell       : FB_FileTell;
+	fbPuts       : FB_FilePuts;
+	fbClose      : FB_FileClose;
+	fbDelete     : FB_FileDelete;
+	fbRename     : FB_FileRename;
+	hFile        : UINT;
+	bStarted     : BOOL;
+	nCursor      : UDINT;                 // Next sequence number to write
+	nPending     : UDINT;
+	nInBatch     : USINT;
+	nSize        : UDINT;
+	bDirDone     : BOOL;
+	nDirPos      : INT;
+	sDirNorm     : STRING(255);
+	sDirPrev     : STRING(255);
+	sFileOld     : STRING(255);
+	sLine        : STRING(255);
+	bLineIsEntry : BOOL;
+	bRotate      : BOOL;
+	bFailClose   : BOOL;
+	tRetryAt     : ULINT;
+	pDir         : POINTER TO BYTE;
+	i            : INT;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF NOT bEnable OR pLog = 0 THEN
+	RETURN;
+END_IF
+IF NOT bStarted THEN
+	bStarted := TRUE;
+	nCursor  := pLog^.nSeq;                  // Don't replay what was in the ring before we started
+END_IF
+
+// Pending entries; if the ring outran us, skip to what is still there and count the loss
+nPending := pLog^.nSeq - nCursor;
+IF nPending > GVL_MbParam.MB_LOG_SIZE THEN
+	nDropped := nDropped + (nPending - GVL_MbParam.MB_LOG_SIZE);
+	nCursor  := pLog^.nSeq - GVL_MbParam.MB_LOG_SIZE;
+	nPending := GVL_MbParam.MB_LOG_SIZE;
+END_IF
+
+CASE eStep OF
+	E_MbLogWriterStep.Idle:
+		IF nPending = 0 OR tNow < tRetryAt THEN
+			RETURN;
+		END_IF
+		BuildNames();
+		IF NOT bDirDone THEN
+			nDirPos := 3;                        // Skip the drive letter and its backslash
+			eStep   := E_MbLogWriterStep.MkDir;
+		ELSE
+			eStep := E_MbLogWriterStep.Open;
+		END_IF
+
+	E_MbLogWriterStep.MkDir:
+		// Create the next path prefix (each level separately)
+		pDir := ADR(sDirNorm);
+		i := nDirPos;
+		WHILE i < LEN(sDirNorm) AND_THEN pDir[i] <> 16#5C DO      // '\'
+			i := i + 1;
+		END_WHILE
+		IF i >= LEN(sDirNorm) THEN
+			bDirDone := TRUE;
+			eStep    := E_MbLogWriterStep.Open;
+		ELSE
+			fbMkDir(sNetId := '', sPathName := LEFT(sDirNorm, i), ePath := PATH_GENERIC, bExecute := TRUE, tTimeout := T#5S);
+			nDirPos := i + 1;
+			eStep   := E_MbLogWriterStep.MkDirWait;
+		END_IF
+
+	E_MbLogWriterStep.MkDirWait:
+		fbMkDir(bExecute := FALSE);
+		IF NOT fbMkDir.bBusy THEN
+			eStep := E_MbLogWriterStep.MkDir;    // Errors ignored: "exists" is fine, anything real surfaces at Open
+		END_IF
+
+	E_MbLogWriterStep.Open:
+		fbOpen(sNetId := '', sPathName := sFile, nMode := FOPEN_MODEAPPEND OR FOPEN_MODETEXT,
+		       ePath := PATH_GENERIC, bExecute := TRUE, tTimeout := T#5S);
+		eStep := E_MbLogWriterStep.OpenWait;
+
+	E_MbLogWriterStep.OpenWait:
+		fbOpen(bExecute := FALSE);
+		IF NOT fbOpen.bBusy THEN
+			IF fbOpen.bError THEN
+				Fail(fbOpen.nErrId, FALSE);
+			ELSE
+				hFile := fbOpen.hFile;
+				fbSeek(sNetId := '', hFile := hFile, nSeekPos := 0, eOrigin := SEEK_END, bExecute := TRUE, tTimeout := T#5S);
+				eStep := E_MbLogWriterStep.SeekWait;
+			END_IF
+		END_IF
+
+	E_MbLogWriterStep.SeekWait:
+		fbSeek(bExecute := FALSE);
+		IF NOT fbSeek.bBusy THEN
+			IF fbSeek.bError THEN
+				Fail(fbSeek.nErrId, TRUE);
+			ELSE
+				fbTell(sNetId := '', hFile := hFile, bExecute := TRUE, tTimeout := T#5S);
+				eStep := E_MbLogWriterStep.TellWait;
+			END_IF
+		END_IF
+
+	E_MbLogWriterStep.TellWait:
+		fbTell(bExecute := FALSE);
+		IF NOT fbTell.bBusy THEN
+			IF fbTell.bError THEN
+				Fail(fbTell.nErrId, TRUE);
+			ELSE
+				nSize    := DINT_TO_UDINT(MAX(0, fbTell.nSeekPos));
+				nInBatch := 0;
+				IF nSize >= GVL_MbParam.MB_LOG_FILE_MAX_BYTES THEN
+					bRotate := TRUE;
+					fbClose(sNetId := '', hFile := hFile, bExecute := TRUE, tTimeout := T#5S);
+					eStep := E_MbLogWriterStep.CloseWait;
+				ELSE
+					IF nSize = 0 THEN
+						sLine := 'TimeUTC,Name,Unit,Region,Address,FC,Op,Class,ExcCode,Retries,Repeat$N';
+						bLineIsEntry := FALSE;
+					ELSE
+						sLine := NextLine();
+					END_IF
+					fbPuts(sNetId := '', hFile := hFile, sLine := sLine, bExecute := TRUE, tTimeout := T#5S);
+					eStep := E_MbLogWriterStep.PutWait;
+				END_IF
+			END_IF
+		END_IF
+
+	E_MbLogWriterStep.PutWait:
+		fbPuts(bExecute := FALSE);
+		IF NOT fbPuts.bBusy THEN
+			IF fbPuts.bError THEN
+				Fail(fbPuts.nErrId, TRUE);
+			ELSE
+				nSize := nSize + INT_TO_UDINT(LEN(sLine)) + 1;           // +1: the LF becomes CRLF in text mode
+				IF bLineIsEntry THEN
+					nCursor  := nCursor + 1;
+					nWritten := nWritten + 1;
+					nInBatch := nInBatch + 1;
+				END_IF
+				nPending := pLog^.nSeq - nCursor;
+				IF nPending > 0 AND nInBatch < GVL_MbParam.MB_LOG_FILE_BATCH AND nSize < GVL_MbParam.MB_LOG_FILE_MAX_BYTES THEN
+					sLine := NextLine();
+					fbPuts(sNetId := '', hFile := hFile, sLine := sLine, bExecute := TRUE, tTimeout := T#5S);
+				ELSE
+					fbClose(sNetId := '', hFile := hFile, bExecute := TRUE, tTimeout := T#5S);
+					eStep := E_MbLogWriterStep.CloseWait;
+				END_IF
+			END_IF
+		END_IF
+
+	E_MbLogWriterStep.CloseWait:
+		fbClose(bExecute := FALSE);
+		IF NOT fbClose.bBusy THEN
+			hFile := 0;
+			IF bFailClose THEN
+				bFailClose := FALSE;
+				eStep := E_MbLogWriterStep.Idle;                          // tRetryAt was set by Fail
+			ELSIF bRotate THEN
+				fbDelete(sNetId := '', sPathName := sFileOld, ePath := PATH_GENERIC, bExecute := TRUE, tTimeout := T#5S);
+				eStep := E_MbLogWriterStep.DeleteWait;
+			ELSE
+				bError := FALSE;
+				eStep  := E_MbLogWriterStep.Idle;
+			END_IF
+		END_IF
+
+	E_MbLogWriterStep.DeleteWait:
+		fbDelete(bExecute := FALSE);
+		IF NOT fbDelete.bBusy THEN                                        // "not found" is fine
+			fbRename(sNetId := '', sOldName := sFile, sNewName := sFileOld, ePath := PATH_GENERIC, bExecute := TRUE, tTimeout := T#5S);
+			eStep := E_MbLogWriterStep.RenameWait;
+		END_IF
+
+	E_MbLogWriterStep.RenameWait:
+		fbRename(bExecute := FALSE);
+		IF NOT fbRename.bBusy THEN
+			bRotate := FALSE;
+			IF fbRename.bError THEN
+				Fail(fbRename.nErrId, FALSE);
+			ELSE
+				eStep := E_MbLogWriterStep.Idle;                          // Next batch opens a fresh file with a header
+			END_IF
+		END_IF
+END_CASE]]></ST>
+    </Implementation>
+    <Method Name="BuildNames" Id="{7656244c-2ad3-4bbd-9065-8ef9546073b3}">
+      <Declaration><![CDATA[METHOD PRIVATE BuildNames]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[sDirNorm := sDir;
+IF LEN(sDirNorm) > 0 AND_THEN RIGHT(sDirNorm, 1) <> '\' THEN
+	sDirNorm := CONCAT(sDirNorm, '\');
+END_IF
+IF sDirNorm <> sDirPrev THEN
+	sDirPrev := sDirNorm;
+	bDirDone := FALSE;
+END_IF
+sFile    := CONCAT(CONCAT(sDirNorm, sName), '.csv');
+sFileOld := CONCAT(CONCAT(sDirNorm, sName), '.1.csv');]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Fail" Id="{2331817d-a430-4db9-a765-f30e15956c58}">
+      <Declaration><![CDATA[METHOD PRIVATE Fail
+VAR_INPUT
+	nId         : UDINT;
+	bCloseFirst : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bError   := TRUE;
+nErrId   := nId;
+tRetryAt := tNow + F_MbTimeToFt(GVL_MbParam.MB_LOG_FILE_RETRY);
+bRotate  := FALSE;
+IF bCloseFirst AND hFile <> 0 THEN
+	bFailClose := TRUE;
+	fbClose(sNetId := '', hFile := hFile, bExecute := TRUE, tTimeout := T#5S);
+	eStep := E_MbLogWriterStep.CloseWait;
+ELSE
+	eStep := E_MbLogWriterStep.Idle;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="NextLine" Id="{ffa246a8-2499-4d5b-9b9c-72477737133c}">
+      <Declaration><![CDATA[METHOD PRIVATE NextLine : STRING(255)
+VAR
+	nAge, nIdx : UDINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Entry with sequence number nCursor: nHead is the next write slot, newest is nHead-1
+nAge := pLog^.nSeq - 1 - nCursor;
+nIdx := (UINT_TO_UDINT(pLog^.nHead) + GVL_MbParam.MB_LOG_SIZE - 1 - nAge) MOD GVL_MbParam.MB_LOG_SIZE;
+bLineIsEntry := TRUE;
+NextLine := F_MbLogEntryToCsv(pLog^.aEntries[nIdx]);]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

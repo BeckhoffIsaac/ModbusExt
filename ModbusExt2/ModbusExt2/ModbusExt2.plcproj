@@ -31,6 +31,9 @@
     <Compile Include="DUTs\E_MbErrorClass.TcDUT">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="DUTs\E_MbLogWriterStep.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="DUTs\E_MbOp.TcDUT">
       <SubType>Code</SubType>
     </Compile>
@@ -121,6 +124,12 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="POUs\Log\FB_MbLogExport.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\Log\FB_MbLogWriter.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\Log\F_MbLogEntryToCsv.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="POUs\Transport\FB_MbTransportMock.TcPOU">

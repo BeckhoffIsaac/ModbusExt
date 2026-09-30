@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="E_MbLogWriterStep" Id="{f47d0162-ed26-46c6-be19-de4318677f5d}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE E_MbLogWriterStep :
+(
+	Idle := 0,
+	MkDir,
+	MkDirWait,
+	Open,
+	OpenWait,
+	SeekWait,
+	TellWait,
+	PutWait,
+	CloseWait,
+	DeleteWait,
+	RenameWait
+);
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

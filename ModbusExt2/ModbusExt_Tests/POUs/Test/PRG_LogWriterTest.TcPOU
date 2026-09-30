@@ -1,0 +1,50 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="PRG_LogWriterTest" Id="{75cef180-d35d-4523-bc83-56ad263d355a}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM PRG_LogWriterTest
+VAR
+	fbWriter  : FB_MbLogWriter;
+	stLog     : ST_MbLog;
+	fbSysTime : GETSYSTEMTIME;
+	tNow      : ULINT;
+	bAddOne   : BOOL;          // Set online: appends one entry to the ring
+	bAddBurst : BOOL;          // Set online: appends 150 entries at once (exceeds the ring)
+	nCount    : UDINT;
+	i         : UINT;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[fbSysTime();
+tNow := SHL(DWORD_TO_ULINT(fbSysTime.timeHiDW), 32) + DWORD_TO_ULINT(fbSysTime.timeLoDW);
+
+IF bAddOne THEN
+	bAddOne := FALSE;
+	Append();
+END_IF
+IF bAddBurst THEN
+	bAddBurst := FALSE;
+	FOR i := 1 TO 150 DO
+		Append();
+	END_FOR
+END_IF
+
+fbWriter(sDir := 'C:\ModbusExt\Logs', sName := 'WriterTest', pLog := ADR(stLog), tNow := tNow);]]></ST>
+    </Implementation>
+    <Method Name="Append" Id="{d58fe52a-9414-42a9-af36-0f18da9797ed}">
+      <Declaration><![CDATA[METHOD Append]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[nCount := nCount + 1;
+stLog.aEntries[stLog.nHead].tTime    := tNow;
+stLog.aEntries[stLog.nHead].sName    := CONCAT('Entry', UDINT_TO_STRING(nCount));
+stLog.aEntries[stLog.nHead].nUnitId  := 1;
+stLog.aEntries[stLog.nHead].eRegion  := E_MbRegion.HoldingRegister;
+stLog.aEntries[stLog.nHead].nAddr    := 40000 + nCount;
+stLog.aEntries[stLog.nHead].nFc      := 3;
+stLog.aEntries[stLog.nHead].eOp      := E_MbOp.Read;
+stLog.aEntries[stLog.nHead].eClass   := E_MbErrorClass.Timeout;
+stLog.nHead := (stLog.nHead + 1) MOD GVL_MbParam.MB_LOG_SIZE;
+IF stLog.nCount < GVL_MbParam.MB_LOG_SIZE THEN stLog.nCount := stLog.nCount + 1; END_IF
+stLog.nSeq := stLog.nSeq + 1;]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

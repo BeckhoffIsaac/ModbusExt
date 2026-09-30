@@ -73,7 +73,7 @@ CASE eStep OF
 				fbClose(sNetId := '', hFile := hFile, bExecute := TRUE, tTimeout := T#5S);
 				eStep := 3;
 			ELSIF nIdx < nCount THEN
-				sLine    := FormatEntry(refLog.aEntries[(nStart + nIdx) MOD GVL_MbParam.MB_LOG_SIZE]);
+				sLine := F_MbLogEntryToCsv(refLog.aEntries[(nStart + nIdx) MOD GVL_MbParam.MB_LOG_SIZE]);
 				nIdx     := nIdx + 1;
 				nWritten := nIdx;
 				fbPuts(sNetId := '', hFile := hFile, sLine := sLine, bExecute := TRUE, tTimeout := T#5S);
@@ -96,32 +96,5 @@ CASE eStep OF
 		END_IF
 END_CASE]]></ST>
     </Implementation>
-    <Method Name="FormatEntry" Id="{f91e7622-3ebd-4876-876e-e0ebbfa276ce}">
-      <Declaration><![CDATA[METHOD PRIVATE FormatEntry : STRING(255)
-VAR_INPUT
-	stE : ST_MbLogEntry;
-END_VAR
-VAR
-	ft    : T_FILETIME;
-	sOut  : STRING(255);
-END_VAR]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[ft.dwLowDateTime  := ULINT_TO_DWORD(stE.tTime);
-ft.dwHighDateTime := ULINT_TO_DWORD(SHR(stE.tTime, 32));
-sOut := SYSTEMTIME_TO_STRING(FILETIME_TO_SYSTEMTIME(ft));
-sOut := CONCAT(sOut, ',');  sOut := CONCAT(sOut, stE.sName);
-sOut := CONCAT(sOut, ',');  sOut := CONCAT(sOut, USINT_TO_STRING(stE.nUnitId));
-sOut := CONCAT(sOut, ',');  sOut := CONCAT(sOut, TO_STRING(stE.eRegion));
-sOut := CONCAT(sOut, ',');  sOut := CONCAT(sOut, UDINT_TO_STRING(stE.nAddr));
-sOut := CONCAT(sOut, ',');  sOut := CONCAT(sOut, BYTE_TO_STRING(stE.nFc));
-sOut := CONCAT(sOut, ',');  sOut := CONCAT(sOut, TO_STRING(stE.eOp));
-sOut := CONCAT(sOut, ',');  sOut := CONCAT(sOut, TO_STRING(stE.eClass));
-sOut := CONCAT(sOut, ',');  sOut := CONCAT(sOut, BYTE_TO_STRING(stE.nExcCode));
-sOut := CONCAT(sOut, ',');  sOut := CONCAT(sOut, USINT_TO_STRING(stE.nRetries));
-sOut := CONCAT(sOut, ',');  sOut := CONCAT(sOut, UDINT_TO_STRING(stE.nRepeat));
-sOut := CONCAT(sOut, '$N');
-FormatEntry := sOut;]]></ST>
-      </Implementation>
-    </Method>
   </POU>
 </TcPlcObject>

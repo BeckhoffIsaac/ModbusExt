@@ -1,0 +1,25 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_Mb_TestValve123" Id="{d63d8f4e-c288-468b-8d8c-be16ab53a888}" SpecialFunc="None">
+    <Declaration><![CDATA[(*@ModbusExt.Profile v1 - managed by ModbusExt Profile Editor. One point per line.*)
+FUNCTION_BLOCK FB_Mb_TestValve123 EXTENDS FB_ModbusDevice
+VAR_INPUT
+	Point1 : ST_MbPoint := (nAddr := 40001);   // replace me
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[Register();
+SUPER^();
+]]></ST>
+    </Implementation>
+    <Method Name="Register" Id="{4f78ef16-2f2e-4f07-aafc-7c7bf8c2331e}">
+      <Declaration><![CDATA[METHOD PRIVATE Register
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Profile(sModel := 'TestValve123');
+AddPoint(Point1, 'Point1');
+]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>
