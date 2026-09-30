@@ -8,6 +8,13 @@ VAR
 	fbBad          : FB_Mb_TestBad;
 	stLogGood      : ST_MbLog;
 	stLogBad       : ST_MbLog;
+	
+	fbGood2   : FB_Mb_TestGood;
+	stLogGood2 : ST_MbLog;
+	nReqLast  : UDINT;
+	nReq1     : UDINT;
+	nReq2     : UDINT;
+	bArbPass  : BOOL;
 
 	bMemInit       : BOOL;
 	bGoodPass      : BOOL;
@@ -40,6 +47,23 @@ END_IF
 
 fbGood(itfTransport := fbMock, bEnable := TRUE, refLog := stLogGood);
 fbBad(bEnable := TRUE, refLog := stLogBad);
+
+fbGood2(itfTransport := fbMock, nUnitId := 2, bEnable := TRUE, refLog := stLogGood2);
+
+// Attribute each mock request to the unit that sent it
+IF fbMock.nRequests <> nReqLast THEN
+	nReqLast := fbMock.nRequests;
+	IF fbMock.nLastUnit = 1 THEN
+		nReq1 := nReq1 + 1;
+	ELSIF fbMock.nLastUnit = 2 THEN
+		nReq2 := nReq2 + 1;
+	END_IF
+END_IF
+
+// Both online, both reading, and the bus split roughly evenly
+bArbPass := fbGood2.bOnline AND fbGood2.Hr1.bValid AND fbGood2.Ir1.bValid
+            AND (nReq1 > 50) AND (nReq2 > 50)
+            AND (nReq2 > nReq1 / 2) AND (nReq1 > nReq2 / 2);
 
 // Config
 bGoodPass  := (NOT fbGood.bConfigError) AND (fbGood.nPoints = 13);
