@@ -9,6 +9,7 @@ VAR_INPUT
 	tTimeout       : TIME  := T#500MS;
 	nRetries       : USINT := 2;
 	refLog         : REFERENCE TO ST_MbLog;   // Application-owned; may be PERSISTENT
+	nOfflineAfter  : USINT := 3;        // Consecutive failed transactions before bOnline drops
 END_VAR
 VAR_OUTPUT
 	bOnline        : BOOL;
@@ -32,6 +33,19 @@ VAR
 	fbSysTime      : GETSYSTEMTIME;
 	tNow           : ULINT;       // FILETIME, refreshed every cycle
 	bNoTransportLogged : BOOL;
+	eState         : E_MbDevState;
+	nCurBlock      : UINT;
+	nRotation      : UINT;
+	nAttempt       : USINT;
+	nConsecFailTx  : UINT;
+	nDevRepeat     : UDINT;             // 0 = no device-level failure open
+	tNextPoll      : ULINT;
+	tTxStart       : ULINT;
+	tLastDevLog    : ULINT;
+	aPdu           : ARRAY[0..GVL_MbParam.MB_ADU_SIZE-1] OF BYTE;
+	cbPdu          : UINT;
+	nExpectedLen   : UINT;
+	stParse        : ST_MbParseResult;
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[fbSysTime();
@@ -57,7 +71,7 @@ IF itfTransport = 0 THEN
 END_IF
 bNoTransportLogged := FALSE;
 
-// Scheduler arrives next]]></ST>
+Scheduler();]]></ST>
     </Implementation>
     <Method Name="AddPoint" Id="{cdc563ad-2007-438e-a6cf-0a325451b108}">
       <Declaration><![CDATA[METHOD PUBLIC AddPoint
@@ -159,6 +173,155 @@ END_VAR]]></Declaration>
 WriteLog(nPointIdx, E_MbOp.Read, E_MbErrorClass.Config, 0, nCode, 0, 0);]]></ST>
       </Implementation>
     </Method>
+    <Method Name="DecodePoint" Id="{cad514a1-703c-4388-967a-41d7d52e6368}">
+      <Declaration><![CDATA[METHOD PRIVATE DecodePoint
+VAR_INPUT
+	idx    : UINT;
+	pSrc   : POINTER TO BYTE;   // First data byte of this point's registers
+END_VAR
+VAR
+	pPt    : POINTER TO ST_MbPoint;
+	nWords : UINT;
+	k      : UINT;
+	fRaw   : LREAL;
+	pStr   : POINTER TO BYTE;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[pPt    := aState[idx].pPoint;
+nWords := aState[idx].nCount;
+
+// Raw words as transmitted, capped at the buffer
+FOR k := 0 TO MIN(nWords, GVL_MbParam.MB_RAW_WORDS) - 1 DO
+	pPt^.aRaw[k] := SHL(BYTE_TO_WORD(pSrc[2 * k]), 8) OR BYTE_TO_WORD(pSrc[2 * k + 1]);
+END_FOR
+
+IF aState[idx].eType = E_MbType.Text THEN
+	pStr := ADR(pPt^.sValue);
+	FOR k := 0 TO nWords - 1 DO
+		IF stProfile.bStringByteSwap THEN
+			pStr[2 * k]     := pSrc[2 * k + 1];
+			pStr[2 * k + 1] := pSrc[2 * k];
+		ELSE
+			pStr[2 * k]     := pSrc[2 * k];
+			pStr[2 * k + 1] := pSrc[2 * k + 1];
+		END_IF
+	END_FOR
+	pStr[2 * nWords] := 0;
+ELSIF aState[idx].eType <> E_MbType.Raw THEN
+	fRaw := F_MbDecode(pSrc, nWords, aState[idx].eType, aState[idx].eWordOrder, pPt^.nBit);
+	IF pPt^.fRawMin <> pPt^.fRawMax THEN
+		pPt^.fValue := pPt^.fEngMin + (fRaw - pPt^.fRawMin) * (pPt^.fEngMax - pPt^.fEngMin) / (pPt^.fRawMax - pPt^.fRawMin);
+	ELSE
+		pPt^.fValue := fRaw;
+	END_IF
+END_IF
+
+IF pPt^.bProbe THEN
+	FillProbe(idx, pSrc, nWords);
+	pPt^.bProbe := FALSE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="EndTransaction" Id="{540b8fd8-f285-4593-a3e7-22903167c337}">
+      <Declaration><![CDATA[METHOD PRIVATE EndTransaction
+VAR_INPUT
+	bReachable : BOOL;
+	eClass     : E_MbErrorClass;
+	nExc       : BYTE;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[itfTransport.Release(nUnitId);
+eState := E_MbDevState.Cooldown;
+
+IF bReachable THEN
+	nConsecFailTx := 0;
+	IF NOT bOnline THEN
+		bOnline := TRUE;
+		IF nDevRepeat > 0 THEN
+			WriteLog(nPoints, E_MbOp.Read, E_MbErrorClass.Recovered, 0, 0, 0, nDevRepeat);
+		END_IF
+		nDevRepeat := 0;
+	END_IF
+	RETURN;
+END_IF
+
+nConsecFailTx := nConsecFailTx + 1;
+IF bOnline AND nConsecFailTx < nOfflineAfter THEN
+	RETURN;                                     // Still online; FailBlock logged the block
+END_IF
+
+bOnline := FALSE;
+IF nDevRepeat = 0 THEN
+	nDevRepeat  := 1;
+	tLastDevLog := tNow;
+	WriteLog(nPoints, E_MbOp.Read, eClass, 0, nExc, nRetries, 1);
+ELSE
+	nDevRepeat := nDevRepeat + 1;
+	IF tNow - tLastDevLog >= F_MbTimeToFt(GVL_MbParam.MB_LOG_REPEAT_INTERVAL) THEN
+		tLastDevLog := tNow;
+		WriteLog(nPoints, E_MbOp.Read, E_MbErrorClass.StillFailing, 0, nExc, nRetries, nDevRepeat);
+	END_IF
+END_IF
+tNextPoll := tNow + F_MbTimeToFt(GVL_MbParam.MB_OFFLINE_RETRY);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FailBlock" Id="{c4901f00-5a12-4af2-a248-93772efab38c}">
+      <Declaration><![CDATA[METHOD PRIVATE FailBlock
+VAR_INPUT
+	eClass : E_MbErrorClass;
+	nExc   : BYTE;
+END_VAR
+VAR
+	k, idx, nFirst : UINT;
+	pPt            : POINTER TO ST_MbPoint;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FOR k := 0 TO aBlocks[nCurBlock].nSortedCount - 1 DO
+	idx := aSorted[aBlocks[nCurBlock].nSortedFirst + k];
+	pPt := aState[idx].pPoint;
+	IF pPt = 0 THEN
+		CONTINUE;
+	END_IF
+	pPt^.bValid     := FALSE;
+	pPt^.nFailCount := pPt^.nFailCount + 1;
+	IF pPt^.bUseFailValue THEN
+		pPt^.fValue := pPt^.fFailValue;
+	END_IF
+END_FOR
+aBlocks[nCurBlock].nConsecFail := aBlocks[nCurBlock].nConsecFail + 1;
+aBlocks[nCurBlock].tLastPoll   := tNow;
+
+// One flood-controlled entry per block, keyed on its first point. Suppressed while offline.
+nFirst := aSorted[aBlocks[nCurBlock].nSortedFirst];
+aState[nFirst].eLastClass := eClass;
+aState[nFirst].nLastExc   := nExc;
+IF NOT aState[nFirst].bFailing THEN
+	aState[nFirst].bFailing := TRUE;
+	aState[nFirst].nRepeat  := 1;
+	aState[nFirst].tLastLog := tNow;
+	IF bOnline THEN
+		WriteLog(nFirst, E_MbOp.Read, eClass, aBlocks[nCurBlock].nFc, nExc, nAttempt, 1);
+	END_IF
+ELSE
+	aState[nFirst].nRepeat := aState[nFirst].nRepeat + 1;
+	IF bOnline AND tNow - aState[nFirst].tLastLog >= F_MbTimeToFt(GVL_MbParam.MB_LOG_REPEAT_INTERVAL) THEN
+		aState[nFirst].tLastLog := tNow;
+		WriteLog(nFirst, E_MbOp.Read, E_MbErrorClass.StillFailing, aBlocks[nCurBlock].nFc, nExc, nAttempt, aState[nFirst].nRepeat);
+	END_IF
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FillProbe" Id="{b3b7297d-af7c-412b-87dc-5aa217b76874}">
+      <Declaration><![CDATA[METHOD PRIVATE FillProbe
+VAR_INPUT
+	idx    : UINT;
+	pSrc   : POINTER TO BYTE;
+	nWords : UINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[;]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="Init" Id="{d0df7de0-453e-4f09-b5f0-ae59dccc5e0f}">
       <Declaration><![CDATA[METHOD PROTECTED Init
 VAR
@@ -170,6 +333,15 @@ END_VAR]]></Declaration>
         <ST><![CDATA[bConfigError := FALSE;
 bOk          := TRUE;
 nBlocks      := 0;
+
+IF eState <> E_MbDevState.Idle AND itfTransport <> 0 THEN
+	itfTransport.Abort(nUnitId);
+	itfTransport.Release(nUnitId);
+END_IF
+eState        := E_MbDevState.Idle;
+nRotation     := 0;
+nConsecFailTx := 0;
+nDevRepeat    := 0;
 
 IF bAddOverflow THEN
 	ConfigFail(nPoints, GVL_MbConst.CFG_TOO_MANY_POINTS);
@@ -227,6 +399,55 @@ END_IF
 
 bConfigError := NOT bOk;
 bInitDone    := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="OnFailure" Id="{2e74f091-f626-4271-9b6c-276d84fc3de2}">
+      <Declaration><![CDATA[METHOD PRIVATE OnFailure
+VAR_INPUT
+	eClass     : E_MbErrorClass;
+	nExc       : BYTE;
+	bReachable : BOOL;    // TRUE when the device did answer (exception)
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF nAttempt < nRetries THEN
+	nAttempt := nAttempt + 1;
+	itfTransport.Abort(nUnitId);
+	IF StartRead() THEN
+		RETURN;
+	END_IF
+	eClass := E_MbErrorClass.Transport;
+END_IF
+FailBlock(eClass, nExc);
+EndTransaction(bReachable, eClass, nExc);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="OnResponse" Id="{5cb8dbf0-fbdd-4a17-acf7-1087411e4100}">
+      <Declaration><![CDATA[METHOD PRIVATE OnResponse]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[nRxCount       := nRxCount + 1;
+tLastRoundTrip := UDINT_TO_TIME(ULINT_TO_UDINT((tNow - tTxStart) / 10000));
+
+F_MbParseResponse(itfTransport.pResponsePdu, itfTransport.cbResponsePdu,
+                  aBlocks[nCurBlock].nFc, aBlocks[nCurBlock].nCount, stParse);
+
+IF stParse.bOk THEN
+	ScatterBlock();
+	EndTransaction(TRUE, E_MbErrorClass.None, 0);
+ELSIF stParse.bException THEN
+	// The device answered, so it is reachable whatever it said
+	IF (stParse.nExcCode = 2 OR stParse.nExcCode = 3) AND_THEN SplitBlock(nCurBlock) THEN
+		WriteLog(aSorted[aBlocks[nCurBlock].nSortedFirst], E_MbOp.Read, E_MbErrorClass.Exception,
+		         aBlocks[nCurBlock].nFc, stParse.nExcCode, nAttempt, 0);
+		EndTransaction(TRUE, E_MbErrorClass.None, 0);
+	ELSIF stParse.nExcCode = 6 THEN
+		OnFailure(E_MbErrorClass.Exception, 6, TRUE);        // Busy: worth a retry
+	ELSE
+		FailBlock(E_MbErrorClass.Exception, stParse.nExcCode);
+		EndTransaction(TRUE, E_MbErrorClass.None, 0);
+	END_IF
+ELSE
+	OnFailure(stParse.eClass, 0, FALSE);                       // Truncated / Malformed
+END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="Profile" Id="{360a3ad9-88ea-438e-b315-cd7a5b2b1ebe}">
@@ -473,6 +694,114 @@ END_IF
 ResolvePoint := bOk;]]></ST>
       </Implementation>
     </Method>
+    <Method Name="ScatterBlock" Id="{599ff5fd-ac2a-4df0-acd7-9a8bd9a6d52b}">
+      <Declaration><![CDATA[METHOD PRIVATE ScatterBlock
+VAR
+	k, idx, nRel : UINT;
+	pData        : POINTER TO BYTE;
+	pPt          : POINTER TO ST_MbPoint;
+	bBits        : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[pData := itfTransport.pResponsePdu + stParse.nDataOffset;
+bBits := (aBlocks[nCurBlock].eRegion = E_MbRegion.Coil) OR (aBlocks[nCurBlock].eRegion = E_MbRegion.DiscreteInput);
+
+FOR k := 0 TO aBlocks[nCurBlock].nSortedCount - 1 DO
+	idx := aSorted[aBlocks[nCurBlock].nSortedFirst + k];
+	pPt := aState[idx].pPoint;
+	IF pPt = 0 THEN
+		CONTINUE;
+	END_IF
+	nRel := aState[idx].nOffset - aBlocks[nCurBlock].nOffset;
+	IF bBits THEN
+		pPt^.fValue  := SEL((pData[nRel / 8] AND SHL(BYTE#1, nRel MOD 8)) <> 0, 0.0, 1.0);
+		pPt^.aRaw[0] := SEL(pPt^.fValue <> 0, WORD#0, WORD#1);
+	ELSE
+		DecodePoint(idx, pData + 2 * nRel);
+	END_IF
+	pPt^.bValid    := TRUE;
+	pPt^.tLastGood := tNow;
+END_FOR
+
+// Block recovered? The first point carries the block's flood-control state.
+idx := aSorted[aBlocks[nCurBlock].nSortedFirst];
+IF aState[idx].bFailing THEN
+	aState[idx].bFailing := FALSE;
+	IF bOnline THEN
+		WriteLog(idx, E_MbOp.Read, E_MbErrorClass.Recovered, aBlocks[nCurBlock].nFc, 0, 0, aState[idx].nRepeat);
+	END_IF
+	aState[idx].nRepeat := 0;
+END_IF
+aBlocks[nCurBlock].nConsecFail := 0;
+aBlocks[nCurBlock].tLastPoll   := tNow;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Scheduler" Id="{e0def7fb-d9ac-49c2-85b4-f1fb88622165}">
+      <Declaration><![CDATA[METHOD PRIVATE Scheduler
+VAR
+	eXfer : E_MbXferState;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF eState = E_MbDevState.Cooldown THEN
+	eState := E_MbDevState.Idle;          // One-cycle gap after Release keeps arbitration fair
+	RETURN;
+END_IF
+
+IF eState = E_MbDevState.Idle THEN
+	IF NOT bOnline AND tNow < tNextPoll THEN
+		RETURN;                           // Offline backoff
+	END_IF
+	IF NOT SelectNextBlock() THEN
+		RETURN;                           // Nothing due
+	END_IF
+	eState := E_MbDevState.Acquire;
+END_IF
+
+IF eState = E_MbDevState.Acquire THEN
+	IF NOT itfTransport.Acquire(nUnitId) THEN
+		RETURN;
+	END_IF
+	nAttempt := 0;
+	IF NOT StartRead() THEN
+		EndTransaction(FALSE, E_MbErrorClass.Transport, 0);
+	END_IF
+	RETURN;
+END_IF
+
+IF eState = E_MbDevState.Wait THEN
+	eXfer := itfTransport.Poll();
+	CASE eXfer OF
+		E_MbXferState.Done:    OnResponse();
+		E_MbXferState.Timeout: OnFailure(E_MbErrorClass.Timeout, 0, FALSE);
+		E_MbXferState.Error:   OnFailure(itfTransport.eLastError, 0, FALSE);
+		E_MbXferState.Idle:    OnFailure(E_MbErrorClass.Transport, 0, FALSE);
+	END_CASE
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="SelectNextBlock" Id="{01d91638-4415-40be-968a-2d3b111e6d63}">
+      <Declaration><![CDATA[METHOD PRIVATE SelectNextBlock : BOOL
+VAR
+	k, nB : UINT;
+	tSlow : ULINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[SelectNextBlock := FALSE;
+IF nBlocks = 0 THEN
+	RETURN;
+END_IF
+tSlow := F_MbTimeToFt(stProfile.tSlowPoll);
+FOR k := 0 TO nBlocks - 1 DO
+	nB := (nRotation + k) MOD nBlocks;
+	IF aBlocks[nB].ePoll = E_MbPoll.Fast OR_ELSE (tNow - aBlocks[nB].tLastPoll >= tSlow) THEN
+		nCurBlock       := nB;
+		nRotation       := (nB + 1) MOD nBlocks;
+		SelectNextBlock := TRUE;
+		RETURN;
+	END_IF
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="SortKey" Id="{8e6ea9a0-7409-40db-a7f0-8f5157124ac6}">
       <Declaration><![CDATA[METHOD PROTECTED SortKey : UDINT
 VAR_INPUT
@@ -499,6 +828,34 @@ CASE aState[i].eRegion OF
 	E_MbRegion.HoldingRegister: nKey := nKey + 3;
 END_CASE
 SortKey := SHL(nKey, 16) + aState[i].nOffset;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="SplitBlock" Id="{19409c0c-167b-4274-be57-50fdc6ee9d01}">
+      <Declaration><![CDATA[METHOD PRIVATE SplitBlock : BOOL
+VAR_INPUT
+	nB : UINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[SplitBlock := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="StartRead" Id="{cd89fc7d-f0e8-4d8a-b29a-9e4d3acaf058}">
+      <Declaration><![CDATA[METHOD PRIVATE StartRead : BOOL]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[StartRead := FALSE;
+cbPdu := F_MbBuildRequest(aBlocks[nCurBlock].nFc, aBlocks[nCurBlock].nOffset, aBlocks[nCurBlock].nCount,
+                          0, 0, ADR(aPdu), GVL_MbParam.MB_ADU_SIZE);
+IF cbPdu = 0 THEN
+	RETURN;
+END_IF
+nExpectedLen := F_MbExpectedResponseLength(aBlocks[nCurBlock].nFc, aBlocks[nCurBlock].nCount);
+IF NOT itfTransport.Send(nUnitId, ADR(aPdu), cbPdu, nExpectedLen, tTimeout) THEN
+	RETURN;
+END_IF
+tTxStart  := tNow;
+nTxCount  := nTxCount + 1;
+eState    := E_MbDevState.Wait;
+StartRead := TRUE;]]></ST>
       </Implementation>
     </Method>
     <Method Name="WriteLog" Id="{262a0eaa-d64f-4553-83c6-d1d8def17402}">

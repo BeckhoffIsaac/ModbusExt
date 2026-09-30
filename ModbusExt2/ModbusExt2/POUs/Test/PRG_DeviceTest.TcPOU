@@ -9,17 +9,46 @@ VAR
 	stLogBad  : ST_MbLog;
 	bGoodPass : BOOL;
 	bBadPass  : BOOL;
+	fbMock    : FB_MbTransportMock;
+	bMemInit  : BOOL;
+	bReadPass : BOOL;
 END_VAR]]></Declaration>
     <Implementation>
-      <ST><![CDATA[fbGood(bEnable := TRUE, refLog := stLogGood);
+      <ST><![CDATA[IF NOT bMemInit THEN
+	bMemInit := TRUE;
+	fbMock.aHolding[0]   := 1234;
+	fbMock.aHolding[1]   := 500;                                   // Hr2: 0..1000 -> 0..100 = 50.0
+	fbMock.aHolding[2]   := 16#0000; fbMock.aHolding[3]   := 16#3FC0;   // Hr3: 1.5 REAL, CDAB
+	fbMock.aHolding[9]   := 16#86A0; fbMock.aHolding[10]  := 16#0001;   // Hr4: 100000 UDINT, CDAB
+	fbMock.aHolding[99]  := 16#4D6F; fbMock.aHolding[100] := 16#6462;   // Hr5: 'ModbusExt'
+	fbMock.aHolding[101] := 16#7573; fbMock.aHolding[102] := 16#4578;
+	fbMock.aHolding[103] := 16#7400;
+	fbMock.aHolding[115] := 42;                                    // Hr6 (slow)
+	fbMock.aHolding[299] := 16#0008;                               // Status bit 3
+	fbMock.aInput[0]     := 16#0000; fbMock.aInput[1]     := 16#4020;   // Ir1: 2.5
+	fbMock.aInput[2]     := 7;       fbMock.aInput[3]     := 0;         // Ir2: 7
+	fbMock.aCoils[0]     := TRUE;    fbMock.aCoils[1]     := FALSE;
+	fbMock.aDiscrete[0]  := TRUE;
+END_IF
+
+fbGood(itfTransport := fbMock, bEnable := TRUE, refLog := stLogGood);
 fbBad(bEnable := TRUE, refLog := stLogBad);
 
-// 13 points -> 7 blocks: coil, DI, IR, 3x fast HR, 1x slow HR. One log entry: no transport attached.
-bGoodPass := (NOT fbGood.bConfigError) AND (fbGood.nPoints = 13) AND (fbGood.nBlocks = 7)
-             AND (stLogGood.nCount = 1) AND (stLogGood.aEntries[0].nExcCode = GVL_MbConst.CFG_NO_TRANSPORT);
+bGoodPass := (NOT fbGood.bConfigError) AND (fbGood.nPoints = 13) AND (fbGood.nBlocks = 7);
+bBadPass  := fbBad.bConfigError AND (fbBad.nBlocks = 0) AND (stLogBad.nCount = 7);
 
-// 7 findings: BAD_ADDRESS, BAD_BIT, BAD_SCALING, BAD_REGS, BAD_TYPE, DUP_NAME, OVERLAP
-bBadPass := fbBad.bConfigError AND (fbBad.nBlocks = 0) AND (stLogBad.nCount = 7);]]></ST>
+bReadPass := fbGood.bOnline
+	AND fbGood.Hr1.bValid AND (fbGood.Hr1.fValue = 1234)
+	AND (fbGood.Hr2.fValue = 50.0)
+	AND (fbGood.Hr3.fValue = 1.5)
+	AND (fbGood.Hr4.fValue = 100000)
+	AND (fbGood.Hr5.sValue = 'ModbusExt')
+	AND fbGood.Hr6.bValid AND (fbGood.Hr6.fValue = 42)
+	AND (fbGood.Status.fValue = 1)
+	AND (fbGood.Ir1.fValue = 2.5) AND (fbGood.Ir2.fValue = 7)
+	AND (fbGood.Coil1.fValue = 1) AND fbGood.Coil2.bValid AND (fbGood.Coil2.fValue = 0)
+	AND (fbGood.Di1.fValue = 1)
+	AND (NOT fbGood.Hr7.bValid);]]></ST>
     </Implementation>
   </POU>
 </TcPlcObject>

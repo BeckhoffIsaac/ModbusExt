@@ -24,6 +24,9 @@
     <Compile Include="DUTs\E_MbAddressing.TcDUT">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="DUTs\E_MbDevState.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="DUTs\E_MbErrorClass.TcDUT">
       <SubType>Code</SubType>
     </Compile>
@@ -69,6 +72,9 @@
     <Compile Include="DUTs\ST_MbProfile.TcDUT">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="DUTs\U_MbConv.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="GVLs\GVL_MbConst.TcGVL">
       <SubType>Code</SubType>
       <LinkAlways>true</LinkAlways>
@@ -83,6 +89,9 @@
     <Compile Include="POUs\Codec\F_MbCrc16.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="POUs\Codec\F_MbDecode.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="POUs\Codec\F_MbExpectedResponseLength.TcPOU">
       <SubType>Code</SubType>
     </Compile>
@@ -90,6 +99,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="POUs\Codec\F_MbParseResponse.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\Codec\F_MbTimeToFt.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="POUs\Device\FB_ModbusDevice.TcPOU">

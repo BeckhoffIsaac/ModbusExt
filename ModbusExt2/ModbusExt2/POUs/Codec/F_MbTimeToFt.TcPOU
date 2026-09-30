@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="F_MbTimeToFt" Id="{75fb081b-ec88-47fe-8e7f-3cb216ebf8ba}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION F_MbTimeToFt : ULINT
+VAR_INPUT
+	t : TIME;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// TIME (ms) -> FILETIME ticks (100 ns)
+F_MbTimeToFt := UDINT_TO_ULINT(TIME_TO_UDINT(t)) * 10000;]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

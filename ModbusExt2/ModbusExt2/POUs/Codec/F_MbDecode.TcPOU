@@ -1,0 +1,54 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="F_MbDecode" Id="{f498f19b-5889-4877-b18f-aa40bd30c694}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION F_MbDecode : LREAL
+VAR_INPUT
+	pSrc       : POINTER TO BYTE;   // First data byte; registers are big-endian on the wire
+	nWords     : UINT;              // 1, 2 or 4
+	eType      : E_MbType;
+	eWordOrder : E_MbWordOrder;
+	nBit       : USINT;             // RegisterBit only
+END_VAR
+VAR
+	k, src     : UINT;
+	w          : WORD;
+	bByteSwap  : BOOL;
+	bWordRev   : BOOL;
+	u          : U_MbConv;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[F_MbDecode := 0;
+IF pSrc = 0 OR nWords < 1 OR nWords > 4 THEN
+	RETURN;
+END_IF
+
+bByteSwap := (eWordOrder = E_MbWordOrder.BADC) OR (eWordOrder = E_MbWordOrder.DCBA);
+bWordRev  := (eWordOrder = E_MbWordOrder.CDAB) OR (eWordOrder = E_MbWordOrder.DCBA);
+
+// Assemble most-significant word first
+u.lw := 0;
+FOR k := 0 TO nWords - 1 DO
+	src := SEL(bWordRev, k, nWords - 1 - k);
+	IF bByteSwap THEN
+		w := SHL(BYTE_TO_WORD(pSrc[2 * src + 1]), 8) OR BYTE_TO_WORD(pSrc[2 * src]);
+	ELSE
+		w := SHL(BYTE_TO_WORD(pSrc[2 * src]), 8) OR BYTE_TO_WORD(pSrc[2 * src + 1]);
+	END_IF
+	u.lw := SHL(u.lw, 16) OR WORD_TO_LWORD(w);
+END_FOR
+
+CASE eType OF
+	E_MbType.Boolean:     F_MbDecode := SEL(u.w <> 0, 0.0, 1.0);
+	E_MbType.Int16:       F_MbDecode := INT_TO_LREAL(u.i);
+	E_MbType.UInt16:      F_MbDecode := UINT_TO_LREAL(WORD_TO_UINT(u.w));
+	E_MbType.Int32:       F_MbDecode := DINT_TO_LREAL(u.di);
+	E_MbType.UInt32:      F_MbDecode := UDINT_TO_LREAL(DWORD_TO_UDINT(u.dw));
+	E_MbType.Real32:      F_MbDecode := REAL_TO_LREAL(u.fR);
+	E_MbType.Int64:       F_MbDecode := LINT_TO_LREAL(u.li);
+	E_MbType.UInt64:      F_MbDecode := ULINT_TO_LREAL(LWORD_TO_ULINT(u.lw));
+	E_MbType.Real64:      F_MbDecode := u.fL;
+	E_MbType.RegisterBit: F_MbDecode := SEL((u.w AND SHL(WORD#1, nBit)) <> 0, 0.0, 1.0);
+END_CASE]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>
