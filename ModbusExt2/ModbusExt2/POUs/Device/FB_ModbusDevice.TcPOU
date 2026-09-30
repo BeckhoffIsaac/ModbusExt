@@ -314,12 +314,39 @@ END_IF]]></ST>
     <Method Name="FillProbe" Id="{b3b7297d-af7c-412b-87dc-5aa217b76874}">
       <Declaration><![CDATA[METHOD PRIVATE FillProbe
 VAR_INPUT
-	idx    : UINT;
-	pSrc   : POINTER TO BYTE;
-	nWords : UINT;
+	idx     : UINT;
+	pSrc    : POINTER TO BYTE;
+	nWords  : UINT;
+END_VAR
+VAR
+	k       : UINT;
+	stEmpty : ST_MbProbe;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[;]]></ST>
+        <ST><![CDATA[stProbe       := stEmpty;
+stProbe.sName := aState[idx].sName;
+stProbe.nAddr := aState[idx].pPoint^.nAddr;
+FOR k := 0 TO 3 DO
+	IF k < nWords THEN
+		stProbe.aRaw[k] := SHL(BYTE_TO_WORD(pSrc[2 * k]), 8) OR BYTE_TO_WORD(pSrc[2 * k + 1]);
+	END_IF
+END_FOR
+stProbe.nInt16  := LREAL_TO_INT(F_MbDecode(pSrc, 1, E_MbType.Int16, E_MbWordOrder.ABCD, 0));
+stProbe.nUInt16 := LREAL_TO_UINT(F_MbDecode(pSrc, 1, E_MbType.UInt16, E_MbWordOrder.ABCD, 0));
+IF nWords >= 2 THEN
+	stProbe.nInt32_ABCD  := LREAL_TO_DINT(F_MbDecode(pSrc, 2, E_MbType.Int32, E_MbWordOrder.ABCD, 0));
+	stProbe.nInt32_CDAB  := LREAL_TO_DINT(F_MbDecode(pSrc, 2, E_MbType.Int32, E_MbWordOrder.CDAB, 0));
+	stProbe.nInt32_BADC  := LREAL_TO_DINT(F_MbDecode(pSrc, 2, E_MbType.Int32, E_MbWordOrder.BADC, 0));
+	stProbe.nInt32_DCBA  := LREAL_TO_DINT(F_MbDecode(pSrc, 2, E_MbType.Int32, E_MbWordOrder.DCBA, 0));
+	stProbe.nUInt32_ABCD := LREAL_TO_UDINT(F_MbDecode(pSrc, 2, E_MbType.UInt32, E_MbWordOrder.ABCD, 0));
+	stProbe.nUInt32_CDAB := LREAL_TO_UDINT(F_MbDecode(pSrc, 2, E_MbType.UInt32, E_MbWordOrder.CDAB, 0));
+	stProbe.nUInt32_BADC := LREAL_TO_UDINT(F_MbDecode(pSrc, 2, E_MbType.UInt32, E_MbWordOrder.BADC, 0));
+	stProbe.nUInt32_DCBA := LREAL_TO_UDINT(F_MbDecode(pSrc, 2, E_MbType.UInt32, E_MbWordOrder.DCBA, 0));
+	stProbe.fReal32_ABCD := LREAL_TO_REAL(F_MbDecode(pSrc, 2, E_MbType.Real32, E_MbWordOrder.ABCD, 0));
+	stProbe.fReal32_CDAB := LREAL_TO_REAL(F_MbDecode(pSrc, 2, E_MbType.Real32, E_MbWordOrder.CDAB, 0));
+	stProbe.fReal32_BADC := LREAL_TO_REAL(F_MbDecode(pSrc, 2, E_MbType.Real32, E_MbWordOrder.BADC, 0));
+	stProbe.fReal32_DCBA := LREAL_TO_REAL(F_MbDecode(pSrc, 2, E_MbType.Real32, E_MbWordOrder.DCBA, 0));
+END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="Init" Id="{d0df7de0-453e-4f09-b5f0-ae59dccc5e0f}">
@@ -480,6 +507,27 @@ nPoints      := 0;
 nBlocks      := 0;
 bAddOverflow := FALSE;
 bInitDone    := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="RecomputeBlockRange" Id="{e085cd21-61b9-40e5-ac8e-9ed0a58cab64}">
+      <Declaration><![CDATA[METHOD PRIVATE RecomputeBlockRange
+VAR_INPUT
+	nB : UINT;
+END_VAR
+VAR
+	k, nFirst, nLast : UINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Points are sorted and non-overlapping, so the last point's end is the block end
+nFirst := aSorted[aBlocks[nB].nSortedFirst];
+nLast  := aSorted[aBlocks[nB].nSortedFirst + aBlocks[nB].nSortedCount - 1];
+aBlocks[nB].nOffset     := aState[nFirst].nOffset;
+aBlocks[nB].nCount      := aState[nLast].nOffset + aState[nLast].nCount - aState[nFirst].nOffset;
+aBlocks[nB].nConsecFail := 0;
+aBlocks[nB].tLastPoll   := 0;
+FOR k := 0 TO aBlocks[nB].nSortedCount - 1 DO
+	aState[aSorted[aBlocks[nB].nSortedFirst + k]].nBlock := nB;
+END_FOR]]></ST>
       </Implementation>
     </Method>
     <Method Name="ResolvePoint" Id="{827675d9-78c7-437f-82ee-e2b7a3b4f256}">
@@ -833,10 +881,39 @@ SortKey := SHL(nKey, 16) + aState[i].nOffset;]]></ST>
     <Method Name="SplitBlock" Id="{19409c0c-167b-4274-be57-50fdc6ee9d01}">
       <Declaration><![CDATA[METHOD PRIVATE SplitBlock : BOOL
 VAR_INPUT
-	nB : UINT;
+	nB    : UINT;
+END_VAR
+VAR
+	n     : INT;
+	k     : UINT;
+	nHalf : UINT;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[SplitBlock := FALSE;]]></ST>
+        <ST><![CDATA[SplitBlock := FALSE;
+IF nB >= nBlocks OR aBlocks[nB].nSortedCount < 2 OR nBlocks >= GVL_MbParam.MB_MAX_BLOCKS THEN
+	RETURN;   // A single multi-register point can't be split; it just keeps failing
+END_IF
+
+// Make room at nB+1
+FOR n := UINT_TO_INT(nBlocks) TO UINT_TO_INT(nB) + 2 BY -1 DO
+	aBlocks[n] := aBlocks[n - 1];
+END_FOR
+nBlocks := nBlocks + 1;
+FOR k := 0 TO nPoints - 1 DO
+	IF aState[k].nBlock > nB AND aState[k].nBlock < GVL_MbParam.MB_MAX_BLOCKS THEN
+		aState[k].nBlock := aState[k].nBlock + 1;
+	END_IF
+END_FOR
+
+// Halve the point range; recompute both address ranges
+nHalf := aBlocks[nB].nSortedCount / 2;
+aBlocks[nB + 1]              := aBlocks[nB];
+aBlocks[nB + 1].nSortedFirst := aBlocks[nB].nSortedFirst + nHalf;
+aBlocks[nB + 1].nSortedCount := aBlocks[nB].nSortedCount - nHalf;
+aBlocks[nB].nSortedCount     := nHalf;
+RecomputeBlockRange(nB);
+RecomputeBlockRange(nB + 1);
+SplitBlock := TRUE;]]></ST>
       </Implementation>
     </Method>
     <Method Name="StartRead" Id="{cd89fc7d-f0e8-4d8a-b29a-9e4d3acaf058}">

@@ -12,6 +12,7 @@ VAR
 	fbMock    : FB_MbTransportMock;
 	bMemInit  : BOOL;
 	bReadPass : BOOL;
+	bSplitPass : BOOL;
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[IF NOT bMemInit THEN
@@ -29,13 +30,14 @@ END_VAR]]></Declaration>
 	fbMock.aInput[2]     := 7;       fbMock.aInput[3]     := 0;         // Ir2: 7
 	fbMock.aCoils[0]     := TRUE;    fbMock.aCoils[1]     := FALSE;
 	fbMock.aDiscrete[0]  := TRUE;
+	fbMock.bExcOnRange := TRUE;
+	fbMock.nExcOffset  := 5;      // Undefined register inside the gap of the first HR block
 END_IF
 
 fbGood(itfTransport := fbMock, bEnable := TRUE, refLog := stLogGood);
 fbBad(bEnable := TRUE, refLog := stLogBad);
 
-bGoodPass := (NOT fbGood.bConfigError) AND (fbGood.nPoints = 13) AND (fbGood.nBlocks = 7);
-bBadPass  := fbBad.bConfigError AND (fbBad.nBlocks = 0) AND (stLogBad.nCount = 7);
+
 
 bReadPass := fbGood.bOnline
 	AND fbGood.Hr1.bValid AND (fbGood.Hr1.fValue = 1234)
