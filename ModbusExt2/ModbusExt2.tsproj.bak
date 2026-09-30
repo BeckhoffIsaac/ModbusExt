@@ -61,7 +61,7 @@
 				</Target>
 			</Licenses>
 			<Tasks>
-				<Task Id="4" Priority="21" CycleTime="100000" AmsPort="351" AutoStart="false" AdtTasks="true">
+				<Task Id="4" Priority="21" CycleTime="100000" AmsPort="351" AdtTasks="true">
 					<Name>PlcTask1</Name>
 				</Task>
 				<Task Id="3" Priority="20" CycleTime="100000" AmsPort="350" AdtTasks="true">
@@ -77,7 +77,7 @@
 				</Instance>
 			</Project>
 			<Project GUID="{29647151-BCEB-43C1-BF26-4A1A292F9229}" Name="ModbusExt_Tests" PrjFilePath="ModbusExt_Tests\ModbusExt_Tests.plcproj" TmcFilePath="ModbusExt_Tests\ModbusExt_Tests.tmc" ReloadTmc="true" AmsPort="852" FileArchiveSettings="#x000e" SymbolicMapping="true">
-				<Instance Id="#x08502040" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{0EA6839A-9F33-54E5-8E0C-4774D977BEFE}" TmcPath="ModbusExt_Tests\ModbusExt_Tests.tmc">
+				<Instance Id="#x08502040" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{BFBD2F0C-A8F5-FB52-F7C5-7F7D9E0A8A8C}" TmcPath="ModbusExt_Tests\ModbusExt_Tests.tmc">
 					<Name>ModbusExt_Tests Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="2" AreaNo="1">

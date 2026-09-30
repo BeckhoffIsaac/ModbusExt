@@ -77,7 +77,7 @@
 				</Instance>
 			</Project>
 			<Project GUID="{29647151-BCEB-43C1-BF26-4A1A292F9229}" Name="ModbusExt_Tests" PrjFilePath="ModbusExt_Tests\ModbusExt_Tests.plcproj" TmcFilePath="ModbusExt_Tests\ModbusExt_Tests.tmc" ReloadTmc="true" AmsPort="852" FileArchiveSettings="#x000e" SymbolicMapping="true">
-				<Instance Id="#x08502040" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{BFBD2F0C-A8F5-FB52-F7C5-7F7D9E0A8A8C}" TmcPath="ModbusExt_Tests\ModbusExt_Tests.tmc">
+				<Instance Id="#x08502040" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{497A6E55-3598-A585-FA30-55808D1BE178}" TmcPath="ModbusExt_Tests\ModbusExt_Tests.tmc">
 					<Name>ModbusExt_Tests Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="2" AreaNo="1">
@@ -111,7 +111,7 @@
 				</Instance>
 			</Project>
 			<Project GUID="{32C3D8C5-3835-4C89-B21A-9B01BDD4CE8B}" Name="ModbusExt_Sample" PrjFilePath="ModbusExt_Sample\ModbusExt_Sample.plcproj" TmcFilePath="ModbusExt_Sample\ModbusExt_Sample.tmc" ReloadTmc="true" AmsPort="853" FileArchiveSettings="#x000e" SymbolicMapping="true">
-				<Instance Id="#x08502080" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{4F5B9F24-39D5-8867-1461-41F56D397613}" TmcPath="ModbusExt_Sample\ModbusExt_Sample.tmc">
+				<Instance Id="#x08502080" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{248367AB-376F-5F34-6BF0-8A19AC38C9DD}" TmcPath="ModbusExt_Sample\ModbusExt_Sample.tmc">
 					<Name>ModbusExt_Sample Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="2" AreaNo="1">
@@ -141,16 +141,6 @@
 					</Contexts>
 					<InitSymbols>
 						<InitSymbol>
-							<Name>GVL_Site.nTcpPort</Name>
-							<Type GUID="{18071995-0000-0000-0000-000000000005}">UINT</Type>
-							<Data>f601</Data>
-							<Properties>
-								<Property>
-									<Name>TcVarGlobal</Name>
-								</Property>
-							</Properties>
-						</InitSymbol>
-						<InitSymbol>
 							<Name>GVL_Site.nDemoUnit</Name>
 							<Type GUID="{18071995-0000-0000-0000-000000000002}">USINT</Type>
 							<Data>01</Data>
@@ -174,6 +164,16 @@
 							<Name>GVL_Site.sTcpHost</Name>
 							<Type GUID="{18071995-0000-0000-0000-00010000000F}">STRING(15)</Type>
 							<Data>3132372e302e302e3100000000000000</Data>
+							<Properties>
+								<Property>
+									<Name>TcVarGlobal</Name>
+								</Property>
+							</Properties>
+						</InitSymbol>
+						<InitSymbol>
+							<Name>GVL_Site.nTcpPort</Name>
+							<Type GUID="{18071995-0000-0000-0000-000000000005}">UINT</Type>
+							<Data>f601</Data>
 							<Properties>
 								<Property>
 									<Name>TcVarGlobal</Name>

@@ -12,6 +12,8 @@ STRUCT
 	fRawMax       : LREAL;
 	fEngMin       : LREAL;
 	fEngMax       : LREAL;
+	fGain         : LREAL;                                   // Alternative scaling: eng = raw * fGain + fOffset. Active iff fGain <> 0
+	fOffset       : LREAL;
 	ePoll         : E_MbPoll     := E_MbPoll.Fast;
 	bUseFailValue : BOOL;                                    // TRUE: fValue := fFailValue after retries exhausted
 	fFailValue    : LREAL;
