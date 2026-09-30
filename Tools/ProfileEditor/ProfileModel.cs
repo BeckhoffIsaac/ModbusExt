@@ -13,6 +13,8 @@ sealed class PointRow
     public double? RawMax    { get; set; }
     public double? EngMin    { get; set; }
     public double? EngMax    { get; set; }
+	public double? Gain      { get; set; }      // eng = raw * Gain + Offset; null = not used
+    public double? Offset    { get; set; }
     public double? FailValue { get; set; }      // null = no fail-over value
     public uint?   Regs      { get; set; }
     public byte?   Bit       { get; set; }

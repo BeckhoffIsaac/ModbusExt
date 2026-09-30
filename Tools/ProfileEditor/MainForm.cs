@@ -112,6 +112,7 @@ sealed class MainForm : Form
         _grid.Columns.AddRange(
             Col("Name", 110), Col("Address", 75), Combo("Type", Enums.Types, 95), Combo("Region", Enums.Regions, 115),
             Col("RawMin", 65), Col("RawMax", 65), Col("EngMin", 65), Col("EngMax", 65),
+            Col("Gain", 60), Col("Offset", 60),
             Combo("Poll", Enums.Polls, 60), Col("FailValue", 70), Col("Regs", 45), Col("Bit", 40),
             Combo("WordOrder", Enums.WordOrders, 80), Col("Comment", 260));
         _grid.DataSource = _rows;
