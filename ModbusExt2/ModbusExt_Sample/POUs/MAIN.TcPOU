@@ -10,6 +10,7 @@ VAR
 	// Devices
 	fbDemo         : FB_Mb_DiagDemo;
 	fbMeter        : FB_Mb_TestGood;
+	fbTemp		   : FB_ModbusDevice;
 
 	// Write handshake example
 	fSetpointCmd   : LREAL;

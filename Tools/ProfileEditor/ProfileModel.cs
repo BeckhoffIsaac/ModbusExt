@@ -2,7 +2,8 @@ namespace ModbusExt.ProfileEditor;
 
 sealed class PointRow
 {
-    public string  Name      { get; set; } = "";
+    string _name = "", _comment = "";
+    public string  Name      { get => _name;    set => _name    = value ?? ""; }
     public uint    Address   { get; set; }
     public string  Type      { get; set; } = "Auto";
     public string  Region    { get; set; } = "Auto";
@@ -15,7 +16,7 @@ sealed class PointRow
     public double? FailValue { get; set; }      // null = no fail-over value
     public uint?   Regs      { get; set; }
     public byte?   Bit       { get; set; }
-    public string  Comment   { get; set; } = "";
+    public string  Comment   { get => _comment; set => _comment = value ?? ""; }
 }
 
 sealed class ProfileModel

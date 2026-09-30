@@ -9,6 +9,8 @@ VAR_INPUT
 	Temp     : ST_MbPoint := (nAddr := 40005, eType := E_MbType.Int16, fRawMin := 0, fRawMax := 1000, fEngMin := 0, fEngMax := 100, bUseFailValue := TRUE, fFailValue := -1);   // scaled, fails to -1
 	Run      : ST_MbPoint := (nAddr := 1);   // coil
 	Fault    : ST_MbPoint := (nAddr := 10001, ePoll := E_MbPoll.Slow);   // discrete input, slow
+	Amps     : ST_MbPoint := (nAddr := 40007, eType := E_MbType.Int16);   // Test with chad and kyle, lord please work
+	Volts	 : ST_MbPoint := (nAddr := 40008, eType := E_MbType.Int16);		// Test manually added from inside TC
 END_VAR
 ]]></Declaration>
     <Implementation>
@@ -25,6 +27,7 @@ AddPoint(Flow, 'Flow');
 AddPoint(Temp, 'Temp');
 AddPoint(Run, 'Run');
 AddPoint(Fault, 'Fault');
+AddPoint(Amps, 'Amps');
 ]]></ST>
       </Implementation>
     </Method>
