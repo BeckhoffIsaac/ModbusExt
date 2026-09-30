@@ -13,6 +13,7 @@ sealed class XaeSession
     // PLC tree item sub-types for CreateChild (TwinCAT Automation Interface)
     public static class SubType
     {
+        public const int Folder        = 601;
         public const int FunctionBlock = 604;
         public const int Method        = 609;
     }
@@ -45,21 +46,29 @@ sealed class XaeSession
 
     public string SolutionName => (string)_dte.Solution.FullName;
 
+    public void BuildSolution() => _dte.ExecuteCommand("Build.BuildSolution", "");
+
     // ---- Discovery ----
 
-    public List<ProfilePou> FindProfiles()
+    public List<string> PlcProjects()
     {
-        var found = new List<ProfilePou>();
+        var names = new List<string>();
         dynamic plcRoot = _sysMan.LookupTreeItem("TIPC");
         int n = plcRoot.ChildCount;
         for (int i = 1; i <= n; i++)
         {
             string plcName = plcRoot.Child[i].Name;
-            dynamic project;
-            try { project = _sysMan.LookupTreeItem($"TIPC^{plcName}^{plcName} Project"); }
-            catch { continue; }                     // PLC node without a project
-            Walk(project, plcName, found);
+            try { _sysMan.LookupTreeItem($"TIPC^{plcName}^{plcName} Project"); names.Add(plcName); }
+            catch { }
         }
+        return names;
+    }
+
+    public List<ProfilePou> FindProfiles()
+    {
+        var found = new List<ProfilePou>();
+        foreach (var plcName in PlcProjects())
+            Walk(_sysMan.LookupTreeItem($"TIPC^{plcName}^{plcName} Project"), plcName, found);
         return found;
     }
 
@@ -103,7 +112,7 @@ sealed class XaeSession
         for (int i = 1; i <= n; i++) Dump(item.Child[i], depth + 1, maxDepth, sb);
     }
 
-    // ---- Read / write ----
+    // ---- Read / write / create ----
 
     public static PouTexts Read(ProfilePou p) =>
         new((string)p.Item.DeclarationText, (string)p.Item.ImplementationText, MethodImplementation(p.Item, "Register"));
@@ -115,10 +124,24 @@ sealed class XaeSession
         dynamic? reg = FindChild(p.Item, "Register");
         if (reg == null)
         {
-            reg = p.Item.CreateChild("Register", SubType.Method, "", null);
+            reg = p.Item.CreateChild("Register", SubType.Method, "", "ST");
             reg.DeclarationText = "METHOD PRIVATE Register\r\n";
         }
         reg.ImplementationText = register;
+    }
+
+    public ProfilePou CreateProfile(string plcName, string fbName, string declaration, string body, string register)
+    {
+        dynamic pous = _sysMan.LookupTreeItem($"TIPC^{plcName}^{plcName} Project^POUs");
+        dynamic? folder = FindChild(pous, "Profiles");
+        folder ??= pous.CreateChild("Profiles", SubType.Folder, "", null);
+        dynamic fb = folder.CreateChild(fbName, SubType.FunctionBlock, "", "ST");
+        fb.DeclarationText    = declaration;
+        fb.ImplementationText = body;
+        dynamic reg = fb.CreateChild("Register", SubType.Method, "", "ST");
+        reg.DeclarationText    = "METHOD PRIVATE Register\r\n";
+        reg.ImplementationText = register;
+        return new ProfilePou { PlcName = plcName, Path = (string)fb.PathName, Item = fb };
     }
 
     public static string? MethodImplementation(dynamic pou, string methodName)
