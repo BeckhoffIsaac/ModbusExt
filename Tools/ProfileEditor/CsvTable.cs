@@ -5,9 +5,9 @@ namespace ModbusExt.ProfileEditor;
 
 static class CsvTable
 {
-    static readonly string[] Header = { "Name", "Address", "Type", "Region", "WordOrder", "Poll", "RawMin", "RawMax", "EngMin", "EngMax", "FailValue", "Regs", "Bit", "Comment" };
-
-    public static string Write(IEnumerable<PointRow> rows)
+    static readonly string[] Header = { "Name", "Address", "Type", "Region", "WordOrder", "Poll", "RawMin", "RawMax", "EngMin", "EngMax", "Gain", "Offset", "FailValue", "Regs", "Bit", "Comment" };
+    
+	public static string Write(IEnumerable<PointRow> rows)
     {
         var sb = new StringBuilder();
         sb.AppendLine(string.Join(",", Header));
@@ -15,7 +15,7 @@ static class CsvTable
             sb.AppendLine(string.Join(",", new[]
             {
                 p.Name, p.Address.ToString(), p.Type, p.Region, p.WordOrder, p.Poll,
-                N(p.RawMin), N(p.RawMax), N(p.EngMin), N(p.EngMax), N(p.FailValue),
+                N(p.RawMin), N(p.RawMax), N(p.EngMin), N(p.EngMax), N(p.Gain), N(p.Offset), N(p.FailValue),
                 p.Regs?.ToString() ?? "", p.Bit?.ToString() ?? "", Quote(p.Comment)
             }));
         return sb.ToString();
@@ -49,6 +49,8 @@ static class CsvTable
                     case "rawmax":                     p.RawMax = D(v); break;
                     case "engmin":                     p.EngMin = D(v); break;
                     case "engmax":                     p.EngMax = D(v); break;
+					case "gain":                       p.Gain = D(v); break;
+                    case "offset":                     p.Offset = D(v); break;
                     case "failvalue" or "fail":        p.FailValue = D(v); break;
                     case "regs" or "nregs":            p.Regs = uint.Parse(v, CultureInfo.InvariantCulture); break;
                     case "bit" or "nbit":              p.Bit = byte.Parse(v, CultureInfo.InvariantCulture); break;

@@ -249,9 +249,12 @@ IF aState[idx].eType = E_MbType.Text THEN
 		END_IF
 	END_FOR
 	pStr[2 * nWords] := 0;
+	
 ELSIF aState[idx].eType <> E_MbType.Raw THEN
 	fRaw := F_MbDecode(pSrc, nWords, aState[idx].eType, aState[idx].eWordOrder, pPt^.nBit);
-	IF pPt^.fRawMin <> pPt^.fRawMax THEN
+	IF pPt^.fGain <> 0 THEN
+		pPt^.fValue := fRaw * pPt^.fGain + pPt^.fOffset;
+	ELSIF pPt^.fRawMin <> pPt^.fRawMax THEN
 		pPt^.fValue := pPt^.fEngMin + (fRaw - pPt^.fRawMin) * (pPt^.fEngMax - pPt^.fEngMin) / (pPt^.fRawMax - pPt^.fRawMin);
 	ELSE
 		pPt^.fValue := fRaw;
@@ -282,7 +285,9 @@ END_IF
 
 // Engineering -> raw (inverse of the read scaling)
 fRaw := pPt^.fWriteValue;
-IF pPt^.fRawMin <> pPt^.fRawMax THEN
+IF pPt^.fGain <> 0 THEN
+	fRaw := (fRaw - pPt^.fOffset) / pPt^.fGain;
+ELSIF pPt^.fRawMin <> pPt^.fRawMax THEN
 	fRaw := pPt^.fRawMin + (fRaw - pPt^.fEngMin) * (pPt^.fRawMax - pPt^.fRawMin) / (pPt^.fEngMax - pPt^.fEngMin);
 END_IF
 
@@ -674,11 +679,13 @@ VAR_INPUT
 	i     : UINT;
 END_VAR
 VAR
-	pP    : POINTER TO ST_MbPoint;
-	eReg  : E_MbRegion;
-	nOff  : UDINT;
-	bBits : BOOL;
-	bOk   : BOOL;
+	pP    	: POINTER TO ST_MbPoint;
+	eReg  	: E_MbRegion;
+	nOff  	: UDINT;
+	bBits 	: BOOL;
+	bOk   	: BOOL;
+	bRange	: BOOL;
+	bGain 	: BOOL;
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[ResolvePoint := FALSE;
@@ -817,15 +824,27 @@ IF nOff + aState[i].nCount > 65536 THEN
 END_IF
 
 // ---- Scaling and fail value ----
-IF pP^.fRawMin <> pP^.fRawMax THEN
-	IF aState[i].eType = E_MbType.Boolean OR aState[i].eType = E_MbType.RegisterBit
-	   OR aState[i].eType = E_MbType.Text OR aState[i].eType = E_MbType.Raw
-	   OR pP^.fEngMin = pP^.fEngMax THEN
-		ConfigFail(i, GVL_MbConst.CFG_BAD_SCALING);
-		bOk := FALSE;
-	END_IF
-ELSIF pP^.fEngMin <> 0 OR pP^.fEngMax <> 0 THEN
+bRange := pP^.fRawMin <> pP^.fRawMax;
+bGain  := pP^.fGain <> 0 OR pP^.fOffset <> 0;
+IF bRange AND bGain THEN
+	ConfigFail(i, GVL_MbConst.CFG_BAD_SCALING);   // One form or the other
+	bOk := FALSE;
+END_IF
+IF bGain AND pP^.fGain = 0 THEN
+	ConfigFail(i, GVL_MbConst.CFG_BAD_SCALING);   // Offset without gain; use fGain := 1 for offset only
+	bOk := FALSE;
+END_IF
+IF bRange AND pP^.fEngMin = pP^.fEngMax THEN
+	ConfigFail(i, GVL_MbConst.CFG_BAD_SCALING);
+	bOk := FALSE;
+END_IF
+IF NOT bRange AND (pP^.fEngMin <> 0 OR pP^.fEngMax <> 0) THEN
 	ConfigFail(i, GVL_MbConst.CFG_BAD_SCALING);   // Eng range given without a raw range
+	bOk := FALSE;
+END_IF
+IF (bRange OR bGain) AND (aState[i].eType = E_MbType.Boolean OR aState[i].eType = E_MbType.RegisterBit
+   OR aState[i].eType = E_MbType.Text OR aState[i].eType = E_MbType.Raw) THEN
+	ConfigFail(i, GVL_MbConst.CFG_BAD_SCALING);
 	bOk := FALSE;
 END_IF
 IF pP^.bUseFailValue AND (aState[i].eType = E_MbType.Text OR aState[i].eType = E_MbType.Raw) THEN

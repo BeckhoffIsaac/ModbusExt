@@ -102,7 +102,13 @@ static class ProfileValidator
             if ((ulong)offset + count > 65536)                   issues.Add(new(i, "Address", "Runs past the end of the address space."));
 
             // Scaling and fail value
+                        // Scaling and fail value
             bool anyScale = p.RawMin.HasValue || p.RawMax.HasValue || p.EngMin.HasValue || p.EngMax.HasValue;
+            bool gainForm = p.Gain.HasValue || p.Offset.HasValue;
+            if (anyScale && gainForm)
+                issues.Add(new(i, "Gain", "Use either Gain/Offset or the RawMin..EngMax range, not both."));
+            if (gainForm && (p.Gain is null or 0))
+                issues.Add(new(i, "Gain", "Gain required and non-zero (use 1 for offset only)."));
             if (anyScale)
             {
                 if (!(p.RawMin.HasValue && p.RawMax.HasValue && p.EngMin.HasValue && p.EngMax.HasValue))
@@ -112,10 +118,11 @@ static class ProfileValidator
                     if (p.RawMin == p.RawMax) issues.Add(new(i, "RawMax", "RawMin and RawMax must differ."));
                     if (p.EngMin == p.EngMax) issues.Add(new(i, "EngMax", "EngMin and EngMax must differ."));
                 }
-                if (type is "Boolean" or "RegisterBit" or "Text" or "Raw") issues.Add(new(i, "RawMin", $"No scaling on {type}."));
             }
-            if (p.FailValue.HasValue && (type is "Text" or "Raw")) issues.Add(new(i, "FailValue", $"No fail value on {type}."));
-
+            if ((anyScale || gainForm) && (type is "Boolean" or "RegisterBit" or "Text" or "Raw"))
+                issues.Add(new(i, anyScale ? "RawMin" : "Gain", $"No scaling on {type}."));
+            if (p.FailValue.HasValue && (type is "Text" or "Raw"))
+                issues.Add(new(i, "FailValue", $"No fail value on {type}."));
             if (addrOk) resolved.Add((i, region, offset, count));
         }
 

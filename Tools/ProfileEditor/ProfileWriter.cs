@@ -59,6 +59,12 @@ static class ProfileWriter
             f.Add($"fEngMin := {Num(p.EngMin ?? 0)}");
             f.Add($"fEngMax := {Num(p.EngMax ?? 0)}");
         }
+		
+		if (p.Gain.HasValue || p.Offset.HasValue)
+        {
+            f.Add($"fGain := {Num(p.Gain ?? 0)}");
+            f.Add($"fOffset := {Num(p.Offset ?? 0)}");
+        }
         if (p.Poll != "Fast")         f.Add($"ePoll := E_MbPoll.{p.Poll}");
         if (p.FailValue is double fv) { f.Add("bUseFailValue := TRUE"); f.Add($"fFailValue := {Num(fv)}"); }
         return string.Join(", ", f);

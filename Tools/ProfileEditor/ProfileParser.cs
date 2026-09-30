@@ -65,6 +65,8 @@ static class ProfileParser
                 case "frawmax":       row.RawMax    = ParseDouble(val); break;
                 case "fengmin":       row.EngMin    = ParseDouble(val); break;
                 case "fengmax":       row.EngMax    = ParseDouble(val); break;
+				case "fgain":         row.Gain      = ParseDouble(val); break;
+                case "foffset":       row.Offset    = ParseDouble(val); break;
                 case "busefailvalue": useFail       = ParseBool(val); break;
                 case "ffailvalue":    failVal       = ParseDouble(val); break;
                 case "nregs":         row.Regs      = ParseUInt(val); break;
