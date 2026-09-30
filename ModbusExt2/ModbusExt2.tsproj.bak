@@ -9,21 +9,44 @@
 				</Target>
 			</Licenses>
 			<Tasks>
-				<Task Id="4" Priority="21" CycleTime="100000" AmsPort="351" AdtTasks="true">
+				<Task Id="4" Priority="21" CycleTime="100000" AmsPort="351" AutoStart="false" AdtTasks="true">
 					<Name>PlcTask1</Name>
+				</Task>
+				<Task Id="3" Priority="20" CycleTime="100000" AmsPort="350" AdtTasks="true">
+					<Name>PlcTask</Name>
 				</Task>
 			</Tasks>
 		</System>
 		<Plc>
 			<Project GUID="{787C24A0-0BE1-4879-AD20-EA0191533F41}" Name="ModbusExt2" PrjFilePath="ModbusExt2\ModbusExt2.plcproj" TmcFilePath="ModbusExt2\ModbusExt2.tmc" ReloadTmc="true" AmsPort="851" FileArchiveSettings="#x000e" SymbolicMapping="true">
-				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{92E65614-71F5-314C-B55C-515194EC8CB7}" TmcPath="ModbusExt2\ModbusExt2.tmc">
+				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{9F887281-7399-F441-32AC-C0BCE0DAEBA4}" TmcPath="ModbusExt2\ModbusExt2.tmc">
 					<Name>ModbusExt2 Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 				</Instance>
 			</Project>
 			<Project GUID="{29647151-BCEB-43C1-BF26-4A1A292F9229}" Name="ModbusExt_Tests" PrjFilePath="ModbusExt_Tests\ModbusExt_Tests.plcproj" TmcFilePath="ModbusExt_Tests\ModbusExt_Tests.tmc" ReloadTmc="true" AmsPort="852" FileArchiveSettings="#x000e" SymbolicMapping="true">
-				<Instance Id="#x08502040" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2">
+				<Instance Id="#x08502040" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{B2733D39-CF75-1C5D-534B-F836E938FBCC}">
 					<Name>ModbusExt_Tests Instance</Name>
+					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
+					<Contexts>
+						<Context>
+							<Id>0</Id>
+							<Name>PlcTask</Name>
+							<ManualConfig>
+								<OTCID>#x02010040</OTCID>
+							</ManualConfig>
+							<Priority>21</Priority>
+							<CycleTime>10000000</CycleTime>
+						</Context>
+					</Contexts>
+					<TaskPouOids>
+						<TaskPouOid Prio="21" OTCID="#x08502041"/>
+					</TaskPouOids>
+				</Instance>
+			</Project>
+			<Project GUID="{32C3D8C5-3835-4C89-B21A-9B01BDD4CE8B}" Name="ModbusExt_Sample" PrjFilePath="ModbusExt_Sample\ModbusExt_Sample.plcproj" TmcFilePath="ModbusExt_Sample\ModbusExt_Sample.tmc" ReloadTmc="true" AmsPort="853" FileArchiveSettings="#x000e" SymbolicMapping="true">
+				<Instance Id="#x08502080" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2">
+					<Name>ModbusExt_Sample Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Contexts>
 						<Context>

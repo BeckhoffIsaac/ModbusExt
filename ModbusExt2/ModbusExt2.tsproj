@@ -61,8 +61,11 @@
 				</Target>
 			</Licenses>
 			<Tasks>
-				<Task Id="4" Priority="21" CycleTime="100000" AmsPort="351" AdtTasks="true">
+				<Task Id="4" Priority="21" CycleTime="100000" AmsPort="351" AutoStart="false" AdtTasks="true">
 					<Name>PlcTask1</Name>
+				</Task>
+				<Task Id="3" Priority="20" CycleTime="100000" AmsPort="350" AdtTasks="true">
+					<Name>PlcTask</Name>
 				</Task>
 			</Tasks>
 		</System>
@@ -74,23 +77,9 @@
 				</Instance>
 			</Project>
 			<Project GUID="{29647151-BCEB-43C1-BF26-4A1A292F9229}" Name="ModbusExt_Tests" PrjFilePath="ModbusExt_Tests\ModbusExt_Tests.plcproj" TmcFilePath="ModbusExt_Tests\ModbusExt_Tests.tmc" ReloadTmc="true" AmsPort="852" FileArchiveSettings="#x000e" SymbolicMapping="true">
-				<Instance Id="#x08502040" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{1BEC2CE7-E0EB-8C5F-810C-F54A38CC5968}">
+				<Instance Id="#x08502040" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{B2733D39-CF75-1C5D-534B-F836E938FBCC}">
 					<Name>ModbusExt_Tests Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
-					<Vars VarGrpType="2" AreaNo="1">
-						<Name>PlcTask Outputs</Name>
-						<Var>
-							<Name>PRG_RtuTest.stEl6Out1</Name>
-							<Type GUID="{D6B0A42D-897A-4B90-95E8-3C741C3CE3EE}" Namespace="Tc2_SerialCom">EL6outData22B</Type>
-						</Var>
-					</Vars>
-					<Vars VarGrpType="1">
-						<Name>PlcTask Inputs</Name>
-						<Var>
-							<Name>PRG_RtuTest.stEl6In1</Name>
-							<Type GUID="{0146173C-D895-D219-E209-CC005AC77636}" Namespace="Tc2_SerialCom">EL6inData22B</Type>
-						</Var>
-					</Vars>
 					<Contexts>
 						<Context>
 							<Id>0</Id>
@@ -104,6 +93,82 @@
 					</Contexts>
 					<TaskPouOids>
 						<TaskPouOid Prio="21" OTCID="#x08502041"/>
+					</TaskPouOids>
+				</Instance>
+			</Project>
+			<Project GUID="{32C3D8C5-3835-4C89-B21A-9B01BDD4CE8B}" Name="ModbusExt_Sample" PrjFilePath="ModbusExt_Sample\ModbusExt_Sample.plcproj" TmcFilePath="ModbusExt_Sample\ModbusExt_Sample.tmc" ReloadTmc="true" AmsPort="853" FileArchiveSettings="#x000e" SymbolicMapping="true">
+				<Instance Id="#x08502080" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{199F1E8B-21D3-92B9-0080-267018876318}">
+					<Name>ModbusExt_Sample Instance</Name>
+					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
+					<Vars VarGrpType="2" AreaNo="1">
+						<Name>PlcTask Outputs</Name>
+						<Var>
+							<Name>GVL_IO.stEl6Out1</Name>
+							<Type GUID="{D6B0A42D-897A-4B90-95E8-3C741C3CE3EE}" Namespace="Tc2_SerialCom">EL6outData22B</Type>
+						</Var>
+					</Vars>
+					<Vars VarGrpType="1">
+						<Name>PlcTask Inputs</Name>
+						<Var>
+							<Name>GVL_IO.stEl6In1</Name>
+							<Type GUID="{0146173C-D895-D219-E209-CC005AC77636}" Namespace="Tc2_SerialCom">EL6inData22B</Type>
+						</Var>
+					</Vars>
+					<Contexts>
+						<Context>
+							<Id>0</Id>
+							<Name>PlcTask</Name>
+							<ManualConfig>
+								<OTCID>#x02010030</OTCID>
+							</ManualConfig>
+							<Priority>20</Priority>
+							<CycleTime>10000000</CycleTime>
+						</Context>
+					</Contexts>
+					<InitSymbols>
+						<InitSymbol>
+							<Name>GVL_Site.nDemoUnit</Name>
+							<Type GUID="{18071995-0000-0000-0000-000000000002}">USINT</Type>
+							<Data>01</Data>
+							<Properties>
+								<Property>
+									<Name>TcVarGlobal</Name>
+								</Property>
+							</Properties>
+						</InitSymbol>
+						<InitSymbol>
+							<Name>GVL_Site.nTcpPort</Name>
+							<Type GUID="{18071995-0000-0000-0000-000000000005}">UINT</Type>
+							<Data>f601</Data>
+							<Properties>
+								<Property>
+									<Name>TcVarGlobal</Name>
+								</Property>
+							</Properties>
+						</InitSymbol>
+						<InitSymbol>
+							<Name>GVL_Site.sTcpHost</Name>
+							<Type GUID="{18071995-0000-0000-0000-00010000000F}">STRING(15)</Type>
+							<Data>3132372e302e302e3100000000000000</Data>
+							<Properties>
+								<Property>
+									<Name>TcVarGlobal</Name>
+								</Property>
+							</Properties>
+						</InitSymbol>
+						<InitSymbol>
+							<Name>GVL_Site.nMeterUnit</Name>
+							<Type GUID="{18071995-0000-0000-0000-000000000002}">USINT</Type>
+							<Data>01</Data>
+							<Properties>
+								<Property>
+									<Name>TcVarGlobal</Name>
+								</Property>
+							</Properties>
+						</InitSymbol>
+					</InitSymbols>
+					<TaskPouOids>
+						<TaskPouOid Prio="20" OTCID="#x08502081"/>
 					</TaskPouOids>
 				</Instance>
 			</Project>

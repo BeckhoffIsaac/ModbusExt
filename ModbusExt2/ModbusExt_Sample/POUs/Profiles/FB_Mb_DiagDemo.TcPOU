@@ -1,0 +1,32 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_Mb_DiagDemo" Id="{b64e33c0-6365-4900-b685-e079aef63470}" SpecialFunc="None">
+    <Declaration><![CDATA[(*@ModbusExt.Profile v1 - managed by ModbusExt Profile Editor. One point per line.*)
+FUNCTION_BLOCK FB_Mb_DiagDemo EXTENDS FB_ModbusDevice
+VAR_INPUT
+	Setpoint : ST_MbPoint := (nAddr := 40001);   // UInt16, read and write
+	Flow     : ST_MbPoint := (nAddr := 40003, eType := E_MbType.Real32);   // 2 registers
+	Temp     : ST_MbPoint := (nAddr := 40005, eType := E_MbType.Int16, fRawMin := 0, fRawMax := 1000, fEngMin := 0, fEngMax := 100, bUseFailValue := TRUE, fFailValue := -1);   // scaled, fails to -1
+	Run      : ST_MbPoint := (nAddr := 1);   // coil
+	Fault    : ST_MbPoint := (nAddr := 10001, ePoll := E_MbPoll.Slow);   // discrete input, slow
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[Register();
+SUPER^();
+]]></ST>
+    </Implementation>
+    <Method Name="Register" Id="{e3d8813e-dd73-4f11-a23b-d8d5d6effe09}">
+      <Declaration><![CDATA[METHOD Register]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Profile(sModel := 'DiagslaveDemo', eWordOrder := E_MbWordOrder.CDAB, tSlowPoll := T#2S);
+AddPoint(Setpoint, 'Setpoint');
+AddPoint(Flow, 'Flow');
+AddPoint(Temp, 'Temp');
+AddPoint(Run, 'Run');
+AddPoint(Fault, 'Fault');
+]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>
