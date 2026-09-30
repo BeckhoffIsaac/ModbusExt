@@ -3,47 +3,55 @@
   <POU Name="PRG_DeviceTest" Id="{94a4fdd9-58be-470e-a662-37590c80149a}" SpecialFunc="None">
     <Declaration><![CDATA[PROGRAM PRG_DeviceTest
 VAR
-	fbGood    : FB_Mb_TestGood;
-	fbBad     : FB_Mb_TestBad;
-	stLogGood : ST_MbLog;
-	stLogBad  : ST_MbLog;
-	bGoodPass : BOOL;
-	bBadPass  : BOOL;
-	fbMock    : FB_MbTransportMock;
-	bMemInit  : BOOL;
-	bReadPass : BOOL;
-	bSplitPass : BOOL;
+	fbMock         : FB_MbTransportMock;
+	fbGood         : FB_Mb_TestGood;
+	fbBad          : FB_Mb_TestBad;
+	stLogGood      : ST_MbLog;
+	stLogBad       : ST_MbLog;
+
+	bMemInit       : BOOL;
+	bGoodPass      : BOOL;
+	bBadPass       : BOOL;
+	bSplitPass     : BOOL;
+	bReadPass      : BOOL;
+	bWritePass     : BOOL;
+	bHandshakePass : BOOL;
+	nWriteStep     : UINT;
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[IF NOT bMemInit THEN
 	bMemInit := TRUE;
 	fbMock.aHolding[0]   := 1234;
-	fbMock.aHolding[1]   := 500;                                   // Hr2: 0..1000 -> 0..100 = 50.0
+	fbMock.aHolding[1]   := 500;                                        // Hr2: 0..1000 -> 0..100 = 50.0
 	fbMock.aHolding[2]   := 16#0000; fbMock.aHolding[3]   := 16#3FC0;   // Hr3: 1.5 REAL, CDAB
 	fbMock.aHolding[9]   := 16#86A0; fbMock.aHolding[10]  := 16#0001;   // Hr4: 100000 UDINT, CDAB
 	fbMock.aHolding[99]  := 16#4D6F; fbMock.aHolding[100] := 16#6462;   // Hr5: 'ModbusExt'
 	fbMock.aHolding[101] := 16#7573; fbMock.aHolding[102] := 16#4578;
 	fbMock.aHolding[103] := 16#7400;
-	fbMock.aHolding[115] := 42;                                    // Hr6 (slow)
-	fbMock.aHolding[299] := 16#0008;                               // Status bit 3
+	fbMock.aHolding[115] := 42;                                         // Hr6 (slow)
+	fbMock.aHolding[299] := 16#0008;                                    // Status bit 3
 	fbMock.aInput[0]     := 16#0000; fbMock.aInput[1]     := 16#4020;   // Ir1: 2.5
 	fbMock.aInput[2]     := 7;       fbMock.aInput[3]     := 0;         // Ir2: 7
 	fbMock.aCoils[0]     := TRUE;    fbMock.aCoils[1]     := FALSE;
 	fbMock.aDiscrete[0]  := TRUE;
-	fbMock.bExcOnRange := TRUE;
-	fbMock.nExcOffset  := 5;      // Undefined register inside the gap of the first HR block
+	fbMock.bExcOnRange   := TRUE;
+	fbMock.nExcOffset    := 5;                                          // Undefined register inside the first HR block's gap
 END_IF
 
 fbGood(itfTransport := fbMock, bEnable := TRUE, refLog := stLogGood);
 fbBad(bEnable := TRUE, refLog := stLogBad);
 
+// Config
 bGoodPass  := (NOT fbGood.bConfigError) AND (fbGood.nPoints = 13);
 bBadPass   := fbBad.bConfigError AND (fbBad.nBlocks = 0) AND (stLogBad.nCount = 7);
-bSplitPass := (fbGood.nBlocks = 9) AND (stLogGood.nCount = 2)
+
+// Self-split: 7 blocks -> 9, first two log entries are the two exceptions
+bSplitPass := (fbGood.nBlocks = 9)
               AND (stLogGood.aEntries[0].eClass = E_MbErrorClass.Exception)
               AND (stLogGood.aEntries[1].eClass = E_MbErrorClass.Exception);
 
-bReadPass := fbGood.bOnline
+// Reads (latched: the writes below change Hr1/Hr2/Hr3/Coil2 afterwards)
+bReadPass := bReadPass OR (fbGood.bOnline
 	AND fbGood.Hr1.bValid AND (fbGood.Hr1.fValue = 1234)
 	AND (fbGood.Hr2.fValue = 50.0)
 	AND (fbGood.Hr3.fValue = 1.5)
@@ -54,7 +62,41 @@ bReadPass := fbGood.bOnline
 	AND (fbGood.Ir1.fValue = 2.5) AND (fbGood.Ir2.fValue = 7)
 	AND (fbGood.Coil1.fValue = 1) AND fbGood.Coil2.bValid AND (fbGood.Coil2.fValue = 0)
 	AND (fbGood.Di1.fValue = 1)
-	AND (NOT fbGood.Hr7.bValid);]]></ST>
+	AND (NOT fbGood.Hr7.bValid));
+
+// Writes
+CASE nWriteStep OF
+	0:
+		IF bReadPass THEN
+			fbGood.Hr1.fWriteValue   := 777;   fbGood.Hr1.bWriteReq   := TRUE;
+			fbGood.Hr2.fWriteValue   := 25.0;  fbGood.Hr2.bWriteReq   := TRUE;   // eng 25 -> raw 250
+			fbGood.Hr3.fWriteValue   := 3.25;  fbGood.Hr3.bWriteReq   := TRUE;   // REAL, CDAB
+			fbGood.Coil2.fWriteValue := 1;     fbGood.Coil2.bWriteReq := TRUE;
+			fbGood.Ir1.fWriteValue   := 1;     fbGood.Ir1.bWriteReq   := TRUE;   // read-only -> Err
+			fbGood.Hr4.fWriteValue   := 5.0E9; fbGood.Hr4.bWriteReq   := TRUE;   // beyond UInt32 -> Err
+			nWriteStep := 1;
+		END_IF
+	1:
+		IF fbGood.Hr1.bWriteDone AND fbGood.Hr2.bWriteDone AND fbGood.Hr3.bWriteDone AND fbGood.Coil2.bWriteDone
+		   AND fbGood.Ir1.bWriteErr AND fbGood.Hr4.bWriteErr THEN
+			bWritePass := (fbMock.aHolding[0] = 777) AND (fbMock.aHolding[1] = 250)
+			              AND (fbMock.aHolding[2] = 16#0000) AND (fbMock.aHolding[3] = 16#4050)
+			              AND fbMock.aCoils[1];
+			fbGood.Hr1.bWriteReq   := FALSE;
+			fbGood.Hr2.bWriteReq   := FALSE;
+			fbGood.Hr3.bWriteReq   := FALSE;
+			fbGood.Coil2.bWriteReq := FALSE;
+			fbGood.Ir1.bWriteReq   := FALSE;
+			fbGood.Hr4.bWriteReq   := FALSE;
+			nWriteStep := 2;
+		END_IF
+	2:
+		IF (NOT fbGood.Hr1.bWriteDone) AND (NOT fbGood.Ir1.bWriteErr) AND (NOT fbGood.Hr1.bWriteBusy)
+		   AND (fbGood.Hr1.fValue = 777) AND (fbGood.Hr3.fValue = 3.25) AND (fbGood.Coil2.fValue = 1) THEN
+			bHandshakePass := TRUE;
+			nWriteStep := 3;
+		END_IF
+END_CASE]]></ST>
     </Implementation>
   </POU>
 </TcPlcObject>

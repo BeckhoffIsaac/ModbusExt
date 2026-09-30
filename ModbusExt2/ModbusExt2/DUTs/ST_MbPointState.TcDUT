@@ -19,6 +19,9 @@ STRUCT
 	eLastClass  : E_MbErrorClass;
 	nLastExc    : BYTE;
 	nWriteState : USINT;                   // 0 idle, 1 queued, 2 in flight
+	aWriteData  : ARRAY[0..7] OF BYTE;
+	cbWriteData : USINT;
+	nWriteQty   : UINT;
 END_STRUCT
 END_TYPE]]></Declaration>
   </DUT>

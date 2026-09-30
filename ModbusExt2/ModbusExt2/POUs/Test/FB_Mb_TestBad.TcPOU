@@ -2,7 +2,7 @@
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_Mb_TestBad" Id="{d1a6654a-d6b0-4ac0-b1ad-8dba202226e9}" SpecialFunc="None">
     <Declaration><![CDATA[FUNCTION_BLOCK FB_Mb_TestBad EXTENDS FB_ModbusDevice
-VAR
+VAR_INPUT
 	A : ST_MbPoint := (nAddr := 40001);
 	B : ST_MbPoint := (nAddr := 40001);                                               // overlap + duplicate name
 	C : ST_MbPoint := (nAddr := 20005);                                               // no Modicon range

@@ -1,0 +1,25 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="F_MbRound" Id="{1e706485-e428-4238-9a6b-06e6c6eb183c}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION F_MbRound : LREAL
+VAR_INPUT
+	f  : LREAL;
+END_VAR
+VAR
+	fR : LREAL;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// Round half away from zero. Exact below 2^31; larger magnitudes pass through.
+IF f >= 0 THEN
+	fR := f + 0.5;
+ELSE
+	fR := f - 0.5;
+END_IF
+IF ABS(fR) < 2147483647.0 THEN
+	F_MbRound := DINT_TO_LREAL(TRUNC(fR));
+ELSE
+	F_MbRound := f;
+END_IF]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

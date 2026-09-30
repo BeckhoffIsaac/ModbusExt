@@ -1,0 +1,72 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="F_MbEncode" Id="{644810a8-5e71-492b-ae37-674faa04482f}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION F_MbEncode : BOOL
+VAR_INPUT
+	fValue     : LREAL;
+	eType      : E_MbType;
+	eWordOrder : E_MbWordOrder;
+	pDst       : POINTER TO BYTE;   // 2*nWords bytes, written big-endian in the configured order
+	nWords     : UINT;
+END_VAR
+VAR
+	u          : U_MbConv;
+	k, dst     : UINT;
+	w          : WORD;
+	fR         : LREAL;
+	bByteSwap  : BOOL;
+	bWordRev   : BOOL;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// FALSE = value out of range for the target type
+F_MbEncode := FALSE;
+IF pDst = 0 OR nWords < 1 OR nWords > 4 THEN
+	RETURN;
+END_IF
+
+u.lw := 0;
+fR   := F_MbRound(fValue);
+CASE eType OF
+	E_MbType.Int16:
+		IF fR < -32768.0 OR fR > 32767.0 THEN RETURN; END_IF
+		u.i := LREAL_TO_INT(fR);
+	E_MbType.UInt16:
+		IF fR < 0.0 OR fR > 65535.0 THEN RETURN; END_IF
+		u.w := UINT_TO_WORD(LREAL_TO_UINT(fR));
+	E_MbType.Int32:
+		IF fR < -2147483648.0 OR fR > 2147483647.0 THEN RETURN; END_IF
+		u.di := LREAL_TO_DINT(fR);
+	E_MbType.UInt32:
+		IF fR < 0.0 OR fR > 4294967295.0 THEN RETURN; END_IF
+		u.dw := UDINT_TO_DWORD(LREAL_TO_UDINT(fR));
+	E_MbType.Int64:
+		u.li := LREAL_TO_LINT(fR);
+	E_MbType.UInt64:
+		IF fR < 0.0 THEN RETURN; END_IF
+		u.lw := ULINT_TO_LWORD(LREAL_TO_ULINT(fR));
+	E_MbType.Real32:
+		IF ABS(fValue) > 3.4028234E38 THEN RETURN; END_IF
+		u.fR := LREAL_TO_REAL(fValue);
+	E_MbType.Real64:
+		u.fL := fValue;
+ELSE
+	RETURN;
+END_CASE
+
+bByteSwap := (eWordOrder = E_MbWordOrder.BADC) OR (eWordOrder = E_MbWordOrder.DCBA);
+bWordRev  := (eWordOrder = E_MbWordOrder.CDAB) OR (eWordOrder = E_MbWordOrder.DCBA);
+FOR k := 0 TO nWords - 1 DO
+	w   := LWORD_TO_WORD(SHR(u.lw, 16 * (nWords - 1 - k)));   // k-th word, most significant first
+	dst := SEL(bWordRev, k, nWords - 1 - k);
+	IF bByteSwap THEN
+		pDst[2 * dst]     := WORD_TO_BYTE(w);
+		pDst[2 * dst + 1] := WORD_TO_BYTE(SHR(w, 8));
+	ELSE
+		pDst[2 * dst]     := WORD_TO_BYTE(SHR(w, 8));
+		pDst[2 * dst + 1] := WORD_TO_BYTE(w);
+	END_IF
+END_FOR
+F_MbEncode := TRUE;]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

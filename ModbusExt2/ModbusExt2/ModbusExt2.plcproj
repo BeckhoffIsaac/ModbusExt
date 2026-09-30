@@ -92,6 +92,9 @@
     <Compile Include="POUs\Codec\F_MbDecode.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="POUs\Codec\F_MbEncode.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="POUs\Codec\F_MbExpectedResponseLength.TcPOU">
       <SubType>Code</SubType>
     </Compile>
@@ -99,6 +102,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="POUs\Codec\F_MbParseResponse.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\Codec\F_MbRound.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="POUs\Codec\F_MbTimeToFt.TcPOU">

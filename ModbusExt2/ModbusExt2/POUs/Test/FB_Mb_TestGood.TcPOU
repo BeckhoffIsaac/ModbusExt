@@ -2,7 +2,7 @@
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_Mb_TestGood" Id="{83a1e989-a86f-48f4-a90f-4a6e1e4a8281}" SpecialFunc="None">
     <Declaration><![CDATA[FUNCTION_BLOCK FB_Mb_TestGood EXTENDS FB_ModbusDevice
-VAR
+VAR_INPUT
 	// Holding registers: 40001..40004 contiguous, 40010 within gap 8 -> one block
 	Hr1    : ST_MbPoint := (nAddr := 40001);
 	Hr2    : ST_MbPoint := (nAddr := 40002, eType := E_MbType.Int16, fRawMin := 0, fRawMax := 1000, fEngMin := 0, fEngMax := 100);

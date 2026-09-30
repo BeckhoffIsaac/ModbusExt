@@ -46,6 +46,8 @@ VAR
 	cbPdu          : UINT;
 	nExpectedLen   : UINT;
 	stParse        : ST_MbParseResult;
+	nCurWrite      : UINT;
+	bWriteTx       : BOOL;              // Current transaction is a write
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[fbSysTime();
@@ -71,6 +73,7 @@ IF itfTransport = 0 THEN
 END_IF
 bNoTransportLogged := FALSE;
 
+ServiceWrites();
 Scheduler();]]></ST>
     </Implementation>
     <Method Name="AddPoint" Id="{cdc563ad-2007-438e-a6cf-0a325451b108}">
@@ -222,6 +225,50 @@ IF pPt^.bProbe THEN
 END_IF]]></ST>
       </Implementation>
     </Method>
+    <Method Name="EncodeWrite" Id="{77ee6716-054e-4a1b-8398-039d781b3bdb}">
+      <Declaration><![CDATA[METHOD PRIVATE EncodeWrite : BOOL
+VAR_INPUT
+	i    : UINT;
+END_VAR
+VAR
+	pPt  : POINTER TO ST_MbPoint;
+	fRaw : LREAL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[EncodeWrite := FALSE;
+pPt := aState[i].pPoint;
+IF pPt = 0 THEN
+	RETURN;
+END_IF
+
+// Engineering -> raw (inverse of the read scaling)
+fRaw := pPt^.fWriteValue;
+IF pPt^.fRawMin <> pPt^.fRawMax THEN
+	fRaw := pPt^.fRawMin + (fRaw - pPt^.fEngMin) * (pPt^.fRawMax - pPt^.fRawMin) / (pPt^.fEngMax - pPt^.fEngMin);
+END_IF
+
+CASE aState[i].nWriteFc OF
+	GVL_MbConst.FC_WRITE_COIL:
+		aState[i].aWriteData[0] := SEL(fRaw <> 0, BYTE#16#00, BYTE#16#FF);
+		aState[i].aWriteData[1] := BYTE#16#00;
+		aState[i].cbWriteData   := 2;
+		aState[i].nWriteQty     := 1;
+	GVL_MbConst.FC_WRITE_COILS:
+		aState[i].aWriteData[0] := SEL(fRaw <> 0, BYTE#16#00, BYTE#16#01);
+		aState[i].cbWriteData   := 1;
+		aState[i].nWriteQty     := 1;
+	GVL_MbConst.FC_WRITE_REGISTER, GVL_MbConst.FC_WRITE_REGISTERS:
+		aState[i].nWriteQty   := aState[i].nCount;
+		aState[i].cbWriteData := UINT_TO_USINT(2 * aState[i].nCount);
+		IF NOT F_MbEncode(fRaw, aState[i].eType, aState[i].eWordOrder, ADR(aState[i].aWriteData), aState[i].nCount) THEN
+			RETURN;
+		END_IF
+ELSE
+	RETURN;
+END_CASE
+EncodeWrite := TRUE;]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="EndTransaction" Id="{540b8fd8-f285-4593-a3e7-22903167c337}">
       <Declaration><![CDATA[METHOD PRIVATE EndTransaction
 VAR_INPUT
@@ -349,6 +396,29 @@ IF nWords >= 2 THEN
 END_IF]]></ST>
       </Implementation>
     </Method>
+    <Method Name="FinishWrite" Id="{a83037aa-d4de-44a4-a2cf-09ccdc80d2b7}">
+      <Declaration><![CDATA[METHOD PRIVATE FinishWrite
+VAR_INPUT
+	bOk    : BOOL;
+	eClass : E_MbErrorClass;
+	nExc   : BYTE;
+END_VAR
+VAR
+	pPt    : POINTER TO ST_MbPoint;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[pPt := aState[nCurWrite].pPoint;
+IF pPt <> 0 THEN
+	pPt^.bWriteBusy := FALSE;
+	pPt^.bWriteDone := bOk;
+	pPt^.bWriteErr  := NOT bOk;
+END_IF
+aState[nCurWrite].nWriteState := 3;
+IF NOT bOk THEN
+	WriteLog(nCurWrite, E_MbOp.Write, eClass, aState[nCurWrite].nWriteFc, nExc, nAttempt, 0);
+END_IF]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="Init" Id="{d0df7de0-453e-4f09-b5f0-ae59dccc5e0f}">
       <Declaration><![CDATA[METHOD PROTECTED Init
 VAR
@@ -439,12 +509,16 @@ END_VAR]]></Declaration>
         <ST><![CDATA[IF nAttempt < nRetries THEN
 	nAttempt := nAttempt + 1;
 	itfTransport.Abort(nUnitId);
-	IF StartRead() THEN
+	IF StartTx() THEN
 		RETURN;
 	END_IF
 	eClass := E_MbErrorClass.Transport;
 END_IF
-FailBlock(eClass, nExc);
+IF bWriteTx THEN
+	FinishWrite(FALSE, eClass, nExc);
+ELSE
+	FailBlock(eClass, nExc);
+END_IF
 EndTransaction(bReachable, eClass, nExc);]]></ST>
       </Implementation>
     </Method>
@@ -453,6 +527,25 @@ EndTransaction(bReachable, eClass, nExc);]]></ST>
       <Implementation>
         <ST><![CDATA[nRxCount       := nRxCount + 1;
 tLastRoundTrip := UDINT_TO_TIME(ULINT_TO_UDINT((tNow - tTxStart) / 10000));
+
+IF bWriteTx THEN
+	F_MbParseResponse(itfTransport.pResponsePdu, itfTransport.cbResponsePdu,
+	                  aState[nCurWrite].nWriteFc, aState[nCurWrite].nWriteQty, stParse);
+	IF stParse.bOk THEN
+		FinishWrite(TRUE, E_MbErrorClass.None, 0);
+		EndTransaction(TRUE, E_MbErrorClass.None, 0);
+	ELSIF stParse.bException THEN
+		IF stParse.nExcCode = 6 THEN
+			OnFailure(E_MbErrorClass.Exception, 6, TRUE);
+		ELSE
+			FinishWrite(FALSE, E_MbErrorClass.Exception, stParse.nExcCode);
+			EndTransaction(TRUE, E_MbErrorClass.None, 0);
+		END_IF
+	ELSE
+		OnFailure(stParse.eClass, 0, FALSE);
+	END_IF
+	RETURN;
+END_IF
 
 F_MbParseResponse(itfTransport.pResponsePdu, itfTransport.cbResponsePdu,
                   aBlocks[nCurBlock].nFc, aBlocks[nCurBlock].nCount, stParse);
@@ -681,7 +774,8 @@ END_IF
 // ---- Scaling and fail value ----
 IF pP^.fRawMin <> pP^.fRawMax THEN
 	IF aState[i].eType = E_MbType.Boolean OR aState[i].eType = E_MbType.RegisterBit
-	   OR aState[i].eType = E_MbType.Text OR aState[i].eType = E_MbType.Raw THEN
+	   OR aState[i].eType = E_MbType.Text OR aState[i].eType = E_MbType.Raw
+	   OR pP^.fEngMin = pP^.fEngMax THEN
 		ConfigFail(i, GVL_MbConst.CFG_BAD_SCALING);
 		bOk := FALSE;
 	END_IF
@@ -721,8 +815,9 @@ CASE eReg OF
 			aState[i].nWriteFc := GVL_MbConst.FC_WRITE_REGISTERS;
 		END_IF
 END_CASE
-IF aState[i].eType = E_MbType.Text OR aState[i].eType = E_MbType.Raw THEN
-	aState[i].nWriteFc := 0;   // Read-only in v1
+// Text/Raw are read-only in v1; a bit write would need read-modify-write, also not in v1
+IF aState[i].eType = E_MbType.Text OR aState[i].eType = E_MbType.Raw OR aState[i].eType = E_MbType.RegisterBit THEN
+	aState[i].nWriteFc := 0;
 END_IF
 
 // ---- Store, reset runtime state ----
@@ -796,11 +891,16 @@ END_VAR]]></Declaration>
 END_IF
 
 IF eState = E_MbDevState.Idle THEN
-	IF NOT bOnline AND tNow < tNextPoll THEN
-		RETURN;                           // Offline backoff
-	END_IF
-	IF NOT SelectNextBlock() THEN
-		RETURN;                           // Nothing due
+	IF SelectNextWrite() THEN
+		bWriteTx := TRUE;                     // Writes preempt the read rotation and ignore backoff
+	ELSE
+		IF NOT bOnline AND tNow < tNextPoll THEN
+			RETURN;
+		END_IF
+		IF NOT SelectNextBlock() THEN
+			RETURN;
+		END_IF
+		bWriteTx := FALSE;
 	END_IF
 	eState := E_MbDevState.Acquire;
 END_IF
@@ -810,7 +910,10 @@ IF eState = E_MbDevState.Acquire THEN
 		RETURN;
 	END_IF
 	nAttempt := 0;
-	IF NOT StartRead() THEN
+	IF NOT StartTx() THEN
+		IF bWriteTx THEN
+			FinishWrite(FALSE, E_MbErrorClass.Transport, 0);
+		END_IF
 		EndTransaction(FALSE, E_MbErrorClass.Transport, 0);
 	END_IF
 	RETURN;
@@ -847,6 +950,68 @@ FOR k := 0 TO nBlocks - 1 DO
 		SelectNextBlock := TRUE;
 		RETURN;
 	END_IF
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="SelectNextWrite" Id="{86a8d983-e1aa-47c7-8d09-71fd8f6f0f5c}">
+      <Declaration><![CDATA[METHOD PRIVATE SelectNextWrite : BOOL
+VAR
+	i : UINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[SelectNextWrite := FALSE;
+FOR i := 0 TO nPoints - 1 DO
+	IF aState[i].nWriteState = 1 THEN
+		nCurWrite             := i;
+		aState[i].nWriteState := 2;
+		SelectNextWrite       := TRUE;
+		RETURN;
+	END_IF
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ServiceWrites" Id="{b9ff0b93-8656-4548-80b2-a4c7003b636c}">
+      <Declaration><![CDATA[METHOD PRIVATE ServiceWrites
+VAR
+	i   : UINT;
+	pPt : POINTER TO ST_MbPoint;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Handshake: bWriteReq rises -> queued (Busy) -> Done or Err held until bWriteReq drops
+IF nPoints = 0 THEN
+	RETURN;
+END_IF
+FOR i := 0 TO nPoints - 1 DO
+	pPt := aState[i].pPoint;
+	IF pPt = 0 THEN
+		CONTINUE;
+	END_IF
+	CASE aState[i].nWriteState OF
+		0:
+			IF pPt^.bWriteReq THEN
+				pPt^.bWriteDone := FALSE;
+				pPt^.bWriteErr  := FALSE;
+				IF aState[i].nWriteFc = 0 THEN
+					pPt^.bWriteErr        := TRUE;
+					aState[i].nWriteState := 3;
+					WriteLog(i, E_MbOp.Write, E_MbErrorClass.Config, 0, GVL_MbConst.CFG_NOT_WRITABLE, 0, 0);
+				ELSIF NOT EncodeWrite(i) THEN
+					pPt^.bWriteErr        := TRUE;
+					aState[i].nWriteState := 3;
+					WriteLog(i, E_MbOp.Write, E_MbErrorClass.Config, aState[i].nWriteFc, GVL_MbConst.CFG_WRITE_RANGE, 0, 0);
+				ELSE
+					pPt^.bWriteBusy       := TRUE;
+					aState[i].nWriteState := 1;
+				END_IF
+			END_IF
+		3:
+			IF NOT pPt^.bWriteReq THEN
+				pPt^.bWriteDone       := FALSE;
+				pPt^.bWriteErr        := FALSE;
+				pPt^.bWriteBusy       := FALSE;
+				aState[i].nWriteState := 0;
+			END_IF
+	END_CASE
 END_FOR]]></ST>
       </Implementation>
     </Method>
@@ -933,6 +1098,36 @@ tTxStart  := tNow;
 nTxCount  := nTxCount + 1;
 eState    := E_MbDevState.Wait;
 StartRead := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="StartTx" Id="{997cad47-a960-4d16-b575-0887be3062a5}">
+      <Declaration><![CDATA[METHOD PRIVATE StartTx : BOOL]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF bWriteTx THEN
+	StartTx := StartWrite();
+ELSE
+	StartTx := StartRead();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="StartWrite" Id="{ed4b50ef-3136-4dcf-853d-7ebaf9f63576}">
+      <Declaration><![CDATA[METHOD PRIVATE StartWrite : BOOL]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[StartWrite := FALSE;
+cbPdu := F_MbBuildRequest(aState[nCurWrite].nWriteFc, aState[nCurWrite].nOffset, aState[nCurWrite].nWriteQty,
+                          ADR(aState[nCurWrite].aWriteData), aState[nCurWrite].cbWriteData,
+                          ADR(aPdu), GVL_MbParam.MB_ADU_SIZE);
+IF cbPdu = 0 THEN
+	RETURN;
+END_IF
+nExpectedLen := F_MbExpectedResponseLength(aState[nCurWrite].nWriteFc, aState[nCurWrite].nWriteQty);
+IF NOT itfTransport.Send(nUnitId, ADR(aPdu), cbPdu, nExpectedLen, tTimeout) THEN
+	RETURN;
+END_IF
+tTxStart   := tNow;
+nTxCount   := nTxCount + 1;
+eState     := E_MbDevState.Wait;
+StartWrite := TRUE;]]></ST>
       </Implementation>
     </Method>
     <Method Name="WriteLog" Id="{262a0eaa-d64f-4553-83c6-d1d8def17402}">
