@@ -37,7 +37,11 @@ END_IF
 fbGood(itfTransport := fbMock, bEnable := TRUE, refLog := stLogGood);
 fbBad(bEnable := TRUE, refLog := stLogBad);
 
-
+bGoodPass  := (NOT fbGood.bConfigError) AND (fbGood.nPoints = 13);
+bBadPass   := fbBad.bConfigError AND (fbBad.nBlocks = 0) AND (stLogBad.nCount = 7);
+bSplitPass := (fbGood.nBlocks = 9) AND (stLogGood.nCount = 2)
+              AND (stLogGood.aEntries[0].eClass = E_MbErrorClass.Exception)
+              AND (stLogGood.aEntries[1].eClass = E_MbErrorClass.Exception);
 
 bReadPass := fbGood.bOnline
 	AND fbGood.Hr1.bValid AND (fbGood.Hr1.fValue = 1234)
