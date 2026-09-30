@@ -53,7 +53,7 @@ fbMock.aHolding[409] := 56;
 fbMock.aHolding[419] := 57;
 
 fbGood(itfTransport := fbMock, bEnable := TRUE, refLog := stLogGood);
-fbBad(bEnable := TRUE, refLog := stLogBad);
+fbBad(bEnable := TRUE, refLog := stLogBad, bLogToFile := FALSE);
 
 fbGood2(itfTransport := fbMock, nUnitId := 2, bEnable := TRUE, refLog := stLogGood2);
 

@@ -15,13 +15,6 @@ VAR
 	// Write handshake example
 	fSetpointCmd   : LREAL;
 	bWriteSetpoint : BOOL;
-
-	// Log housekeeping
-	fbExport       : FB_MbLogExport;
-	bExportLog     : BOOL;
-	fbPersist      : FB_WritePersistentData;
-	tonPersist     : TON;
-	nLastErrors    : UDINT;
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[// ---- Transports ----
@@ -29,8 +22,8 @@ fbTcp(sHost := GVL_Site.sTcpHost, nPort := GVL_Site.nTcpPort);
 fbRs485(pComIn := ADR(GVL_IO.stEl6In1), pComOut := ADR(GVL_IO.stEl6Out1), nSizeComIn := SIZEOF(GVL_IO.stEl6In1));
 
 // ---- Devices ----
-fbDemo(itfTransport := fbTcp,   nUnitId := GVL_Site.nDemoUnit,  bEnable := TRUE, refLog := GVL_Log.stLogDemo);
-fbMeter(itfTransport := fbRs485, nUnitId := GVL_Site.nMeterUnit, bEnable := TRUE, refLog := GVL_Log.stLogMeter);
+fbDemo(itfTransport := fbTcp,   nUnitId := GVL_Site.nDemoUnit,  bEnable := TRUE);
+fbMeter(itfTransport := fbRs485, nUnitId := GVL_Site.nMeterUnit, bEnable := TRUE, sLogName := 'FlowMeter_Inlet');
 
 // ---- Write handshake: set fSetpointCmd, pulse bWriteSetpoint ----
 IF bWriteSetpoint AND NOT fbDemo.Setpoint.bWriteReq AND NOT fbDemo.Setpoint.bWriteBusy THEN
@@ -40,17 +33,7 @@ END_IF
 IF fbDemo.Setpoint.bWriteDone OR fbDemo.Setpoint.bWriteErr THEN
 	fbDemo.Setpoint.bWriteReq := FALSE;
 	bWriteSetpoint            := FALSE;
-END_IF
-
-// ---- Log export on demand ----
-fbExport(sPath := 'C:\ModbusExt\demo_log.csv', bExecute := bExportLog, refLog := GVL_Log.stLogDemo);
-
-// ---- Persist the logs 10 s after the error count last changed ----
-tonPersist(IN := (GVL_Log.stLogDemo.nTotalErrors + GVL_Log.stLogMeter.nTotalErrors <> nLastErrors), PT := T#10S);
-IF tonPersist.Q THEN
-	nLastErrors := GVL_Log.stLogDemo.nTotalErrors + GVL_Log.stLogMeter.nTotalErrors;
-END_IF
-fbPersist(NETID := '', PORT := 851, START := tonPersist.Q, TMOUT := T#5S, MODE := SPDM_2PASS);]]></ST>
+END_IF]]></ST>
     </Implementation>
   </POU>
 </TcPlcObject>

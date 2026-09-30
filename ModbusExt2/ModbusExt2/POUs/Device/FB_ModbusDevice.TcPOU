@@ -10,6 +10,9 @@ VAR_INPUT
 	nRetries       : USINT := 2;
 	refLog         : REFERENCE TO ST_MbLog;   // Application-owned; may be PERSISTENT
 	nOfflineAfter  : USINT := 3;        // Consecutive failed transactions before bOnline drops
+	bLogToFile     : BOOL := TRUE;
+	sLogDir        : STRING(255) := GVL_MbParam.MB_LOG_DIR;
+	sLogName       : STRING(80);        // '' = <Model>_U<unit>
 END_VAR
 VAR_OUTPUT
 	bOnline        : BOOL;
@@ -23,6 +26,9 @@ VAR_OUTPUT
 	nPoints        : UINT;
 	nBlocks        : UINT;
 	nLogDropped    : UDINT;
+	bLogFileError  : BOOL;
+	nLogFileErrId  : UDINT;
+	nLogWritten    : UDINT;
 END_VAR
 VAR
 	stProfile      : ST_MbProfile;
@@ -51,10 +57,32 @@ VAR
 	bWriteTx       : BOOL;              // Current transaction is a write
 	nRegCursor     : UINT;
 	bRegChanged    : BOOL;
+	stLog          : ST_MbLog;              // Internal ring, used when refLog is not bound
+	pLog           : POINTER TO ST_MbLog;   // Active ring, refreshed every cycle
+	fbLogWriter    : FB_MbLogWriter;
+	sLogNameEff    : STRING(80);
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[fbSysTime();
 tNow := SHL(DWORD_TO_ULINT(fbSysTime.timeHiDW), 32) + DWORD_TO_ULINT(fbSysTime.timeLoDW);
+
+// Active ring: the caller's (persistent or merged) or our own. Refreshed every cycle.
+IF __ISVALIDREF(refLog) THEN
+	pLog := ADR(refLog);
+ELSE
+	pLog := ADR(stLog);
+END_IF
+
+// File writer: drains new entries in the background, even while disabled
+IF LEN(sLogName) > 0 THEN
+	sLogNameEff := sLogName;
+ELSE
+	sLogNameEff := CONCAT(CONCAT(stProfile.sModel, '_U'), USINT_TO_STRING(nUnitId));
+END_IF
+fbLogWriter(bEnable := bLogToFile, sDir := sLogDir, sName := sLogNameEff, pLog := pLog, tNow := tNow);
+bLogFileError := fbLogWriter.bError;
+nLogFileErrId := fbLogWriter.nErrId;
+nLogWritten   := fbLogWriter.nWritten;
 
 IF NOT bEnable THEN
 	RETURN;
@@ -1162,9 +1190,9 @@ VAR
 	stEntry   : ST_MbLogEntry;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF NOT __ISVALIDREF(refLog) THEN
+        <ST><![CDATA[IF pLog = 0 THEN
 	nLogDropped := nLogDropped + 1;
-    RETURN;
+	RETURN;
 END_IF
 
 stEntry.tTime    := tNow;
@@ -1185,21 +1213,22 @@ ELSE
 END_IF
 
 // Ring insert
-IF refLog.nHead >= GVL_MbParam.MB_LOG_SIZE THEN
-	refLog.nHead := 0;
+IF pLog^.nHead >= GVL_MbParam.MB_LOG_SIZE THEN
+	pLog^.nHead := 0;
 END_IF
-refLog.aEntries[refLog.nHead] := stEntry;
-refLog.nHead := (refLog.nHead + 1) MOD GVL_MbParam.MB_LOG_SIZE;
-IF refLog.nCount < GVL_MbParam.MB_LOG_SIZE THEN
-	refLog.nCount := refLog.nCount + 1;
+pLog^.aEntries[pLog^.nHead] := stEntry;
+pLog^.nHead := (pLog^.nHead + 1) MOD GVL_MbParam.MB_LOG_SIZE;
+IF pLog^.nCount < GVL_MbParam.MB_LOG_SIZE THEN
+	pLog^.nCount := pLog^.nCount + 1;
 ELSE
-	refLog.nDropped := refLog.nDropped + 1;
+	pLog^.nDropped := pLog^.nDropped + 1;
 END_IF
+pLog^.nSeq := pLog^.nSeq + 1;
 
 IF eClass <> E_MbErrorClass.Recovered AND eClass <> E_MbErrorClass.None THEN
-	refLog.nTotalErrors := refLog.nTotalErrors + 1;
-	nErrorCount         := nErrorCount + 1;
-	stLastError         := stEntry;
+	pLog^.nTotalErrors := pLog^.nTotalErrors + 1;
+	nErrorCount        := nErrorCount + 1;
+	stLastError        := stEntry;
 END_IF]]></ST>
       </Implementation>
     </Method>
