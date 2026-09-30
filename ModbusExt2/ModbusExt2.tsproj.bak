@@ -11,7 +11,7 @@
 		</System>
 		<Plc>
 			<Project GUID="{787C24A0-0BE1-4879-AD20-EA0191533F41}" Name="ModbusExt2" PrjFilePath="ModbusExt2\ModbusExt2.plcproj" TmcFilePath="ModbusExt2\ModbusExt2.tmc" ReloadTmc="true" AmsPort="851" FileArchiveSettings="#x000e" SymbolicMapping="true">
-				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{2A868DF2-BC7B-562D-D383-D73C770A311F}" TmcPath="ModbusExt2\ModbusExt2.tmc">
+				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{14AD8207-0CF3-C042-42AF-0512FCF9F77B}" TmcPath="ModbusExt2\ModbusExt2.tmc">
 					<Name>ModbusExt2 Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Contexts>

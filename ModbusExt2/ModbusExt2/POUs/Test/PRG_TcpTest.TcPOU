@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="PRG_TcpTest" Id="{ffd27da5-dd9c-45ea-b695-d94c84934263}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM PRG_TcpTest
+VAR
+	fbTcp    : FB_MbTransportTcp := (sHost := '127.0.0.1', nPort := 502);
+	fbDev    : FB_Mb_TestGood;
+	stLog    : ST_MbLog;
+	bTcpPass : BOOL;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[fbTcp();
+fbDev(itfTransport := fbTcp, nUnitId := 1, bEnable := TRUE, refLog := stLog);
+
+bTcpPass := fbTcp.bConnected AND fbDev.bOnline
+            AND (fbDev.Hr1.fValue = 1234) AND (fbDev.Hr2.fValue = 50.0) AND (fbDev.Hr3.fValue = 1.5);]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

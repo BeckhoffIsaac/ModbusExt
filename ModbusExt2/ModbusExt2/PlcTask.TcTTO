@@ -10,6 +10,9 @@
     <PouCall>
       <Name>PRG_DeviceTest</Name>
     </PouCall>
+    <PouCall>
+      <Name>PRG_TcpTest</Name>
+    </PouCall>
     <TaskFBGuid>{5a3cbb49-a791-4783-bbc6-0ea175d73dc3}</TaskFBGuid>
     <Fb_init>{5783d6dd-e02d-4ff2-800b-4f9fd15a2a73}</Fb_init>
     <Fb_exit>{b17d5f64-4d8a-480e-aa3f-1b03583737c5}</Fb_exit>

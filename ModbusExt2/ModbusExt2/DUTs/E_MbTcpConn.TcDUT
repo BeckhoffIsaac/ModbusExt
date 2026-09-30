@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="E_MbTcpConn" Id="{d290a246-d7f5-4b9a-ba24-b4544ac7e640}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE E_MbTcpConn :
+(
+	Init := 0,
+	CloseAllWait,
+	Disconnected,
+	Connecting,
+	Connected,
+	Closing,
+	ClosingWait
+);
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

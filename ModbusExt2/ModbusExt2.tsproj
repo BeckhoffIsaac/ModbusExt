@@ -3,6 +3,11 @@
 	<Project ProjectGUID="{8770EF1E-6B5D-47FE-A325-144053C7771C}" Target64Bit="true" ShowHideConfigurations="#x6">
 		<System>
 			<Settings MaxCpus="4"/>
+			<Licenses>
+				<Target>
+					<ManualSelect>{3EBB9639-5FF3-42B6-8847-35C70DC013C8}</ManualSelect>
+				</Target>
+			</Licenses>
 			<Tasks>
 				<Task Id="3" Priority="20" CycleTime="100000" AmsPort="350" AdtTasks="true">
 					<Name>PlcTask</Name>
@@ -11,7 +16,7 @@
 		</System>
 		<Plc>
 			<Project GUID="{787C24A0-0BE1-4879-AD20-EA0191533F41}" Name="ModbusExt2" PrjFilePath="ModbusExt2\ModbusExt2.plcproj" TmcFilePath="ModbusExt2\ModbusExt2.tmc" ReloadTmc="true" AmsPort="851" FileArchiveSettings="#x000e" SymbolicMapping="true">
-				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{4CFB306A-0CBA-60AE-3B67-3A5FAF244FFB}" TmcPath="ModbusExt2\ModbusExt2.tmc">
+				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{14AD8207-0CF3-C042-42AF-0512FCF9F77B}" TmcPath="ModbusExt2\ModbusExt2.tmc">
 					<Name>ModbusExt2 Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Contexts>
