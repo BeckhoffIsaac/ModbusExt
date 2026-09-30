@@ -8,9 +8,7 @@ VAR_INPUT
 	bEnable        : BOOL;
 	tTimeout       : TIME  := T#500MS;
 	nRetries       : USINT := 2;
-END_VAR
-VAR_IN_OUT
-	stLog          : ST_MbLog;
+	refLog         : REFERENCE TO ST_MbLog;   // Application-owned; may be PERSISTENT
 END_VAR
 VAR_OUTPUT
 	bOnline        : BOOL;
@@ -518,7 +516,11 @@ VAR
 	stEntry   : ST_MbLogEntry;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[stEntry.tTime    := tNow;
+        <ST><![CDATA[IF NOT __ISVALIDREF(refLog) THEN
+	RETURN;
+END_IF
+
+stEntry.tTime    := tNow;
 stEntry.nUnitId  := nUnitId;
 stEntry.eOp      := eOp;
 stEntry.eClass   := eClass;
@@ -536,21 +538,21 @@ ELSE
 END_IF
 
 // Ring insert
-IF stLog.nHead >= GVL_MbParam.MB_LOG_SIZE THEN
-	stLog.nHead := 0;
+IF refLog.nHead >= GVL_MbParam.MB_LOG_SIZE THEN
+	refLog.nHead := 0;
 END_IF
-stLog.aEntries[stLog.nHead] := stEntry;
-stLog.nHead := (stLog.nHead + 1) MOD GVL_MbParam.MB_LOG_SIZE;
-IF stLog.nCount < GVL_MbParam.MB_LOG_SIZE THEN
-	stLog.nCount := stLog.nCount + 1;
+refLog.aEntries[refLog.nHead] := stEntry;
+refLog.nHead := (refLog.nHead + 1) MOD GVL_MbParam.MB_LOG_SIZE;
+IF refLog.nCount < GVL_MbParam.MB_LOG_SIZE THEN
+	refLog.nCount := refLog.nCount + 1;
 ELSE
-	stLog.nDropped := stLog.nDropped + 1;
+	refLog.nDropped := refLog.nDropped + 1;
 END_IF
 
 IF eClass <> E_MbErrorClass.Recovered AND eClass <> E_MbErrorClass.None THEN
-	stLog.nTotalErrors := stLog.nTotalErrors + 1;
-	nErrorCount        := nErrorCount + 1;
-	stLastError        := stEntry;
+	refLog.nTotalErrors := refLog.nTotalErrors + 1;
+	nErrorCount         := nErrorCount + 1;
+	stLastError         := stEntry;
 END_IF]]></ST>
       </Implementation>
     </Method>

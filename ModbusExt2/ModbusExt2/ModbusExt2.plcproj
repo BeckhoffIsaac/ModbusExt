@@ -98,6 +98,9 @@
     <Compile Include="POUs\MAIN.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="POUs\Test\FB_MbTransportMock.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="POUs\Test\FB_Mb_TestBad.TcPOU">
       <SubType>Code</SubType>
     </Compile>

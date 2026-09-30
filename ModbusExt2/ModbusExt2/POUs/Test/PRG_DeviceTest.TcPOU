@@ -11,8 +11,8 @@ VAR
 	bBadPass  : BOOL;
 END_VAR]]></Declaration>
     <Implementation>
-      <ST><![CDATA[fbGood(bEnable := TRUE, stLog := stLogGood);
-fbBad(bEnable := TRUE, stLog := stLogBad);
+      <ST><![CDATA[fbGood(bEnable := TRUE, refLog := stLogGood);
+fbBad(bEnable := TRUE, refLog := stLogBad);
 
 // 13 points -> 7 blocks: coil, DI, IR, 3x fast HR, 1x slow HR. One log entry: no transport attached.
 bGoodPass := (NOT fbGood.bConfigError) AND (fbGood.nPoints = 13) AND (fbGood.nBlocks = 7)

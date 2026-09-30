@@ -25,7 +25,7 @@ VAR
 	Di1    : ST_MbPoint := (nAddr := 10001);
 END_VAR]]></Declaration>
     <Implementation>
-      <ST><![CDATA[SUPER^(stLog := stLog);]]></ST>
+      <ST><![CDATA[SUPER^();]]></ST>
     </Implementation>
     <Method Name="FB_Init" Id="{fea2264a-c40e-4409-b221-df979594f906}">
       <Declaration><![CDATA[//FB_Init is always available implicitly and it is used primarily for initialization.

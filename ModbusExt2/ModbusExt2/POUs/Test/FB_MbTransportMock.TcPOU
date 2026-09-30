@@ -1,0 +1,303 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_MbTransportMock" Id="{faab636f-474a-44b9-9bfd-4893e36926f9}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_MbTransportMock IMPLEMENTS I_MbTransport
+VAR_INPUT
+	bReadyIn        : BOOL := TRUE;
+	nDelayCycles    : UINT := 2;       // Poll() calls between Send and Done
+	bForceTimeout   : BOOL;            // Answer Timeout
+	bForceCrc       : BOOL;            // Answer Error / Crc
+	bForceException : BOOL;            // Answer exception nForcedExc
+	nForcedExc      : BYTE := 2;
+	bExcOnRange     : BOOL;            // Exception 02 when a register read covers nExcOffset
+	nExcOffset      : UINT;
+	// Simulated device memory, 0-based. Inputs so test code can write them directly.
+	aHolding        : ARRAY[0..999] OF WORD;
+	aInput          : ARRAY[0..999] OF WORD;
+	aCoils          : ARRAY[0..999] OF BOOL;
+	aDiscrete       : ARRAY[0..999] OF BOOL;
+END_VAR
+VAR_OUTPUT
+	nRequests       : UDINT;
+	nOwner          : USINT;           // 0 = bus free
+	nLastUnit       : USINT;
+	nLastFc         : USINT;
+	nLastOffset     : UINT;
+	nLastQty        : UINT;            // Value field for FC5/6
+END_VAR
+VAR
+	eState          : E_MbXferState;
+	eErr            : E_MbErrorClass;
+	aReq            : ARRAY[0..GVL_MbParam.MB_ADU_SIZE-1] OF BYTE;
+	cbReq           : UINT;
+	aResp           : ARRAY[0..GVL_MbParam.MB_ADU_SIZE-1] OF BYTE;
+	cbResp          : UINT;
+	nCountdown      : UINT;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="Abort" Id="{e71a2ab6-f232-423f-a13c-89c374981390}">
+      <Declaration><![CDATA[METHOD Abort
+VAR_INPUT
+	nUnitId	: USINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF nOwner = nUnitId THEN
+	eState := E_MbXferState.Idle;
+	cbResp := 0;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Acquire" Id="{5bf35736-6007-4cc5-91a2-c4bb43a567e7}">
+      <Declaration><![CDATA[METHOD Acquire : BOOL
+VAR_INPUT
+	(* Caller's unit ID doubles as the owner key. TRUE = you hold the bus.*)
+	nUnitId	: USINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF nUnitId = 0 THEN
+	Acquire := FALSE;
+	RETURN;
+END_IF
+IF nOwner = 0 THEN
+	nOwner := nUnitId;
+END_IF
+Acquire := (nOwner = nUnitId);]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="bReady" Id="{1ec7ad54-a5ed-44e0-85c6-90758b2ef813}">
+      <Declaration><![CDATA[PROPERTY bReady : BOOL]]></Declaration>
+      <Get Name="Get" Id="{675070fb-1166-4096-809c-8546b46ff2f2}">
+        <Declaration><![CDATA[]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[bReady := bReadyIn;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="cbResponsePdu" Id="{456cc5d1-41f8-4861-b7ae-fc987b605c3f}">
+      <Declaration><![CDATA[PROPERTY cbResponsePdu : UINT]]></Declaration>
+      <Get Name="Get" Id="{91a449e2-7774-42bf-bcda-0140d7d9b239}">
+        <Declaration><![CDATA[]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[cbResponsePdu := cbResp;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="eLastError" Id="{77a37818-5579-4f6e-88df-9c8d2ef09b1d}">
+      <Declaration><![CDATA[PROPERTY eLastError : E_MbErrorClass]]></Declaration>
+      <Get Name="Get" Id="{3adc8ef7-5e73-46e5-8a20-cf5de8df2f2f}">
+        <Declaration><![CDATA[]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[eLastError := eErr;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Method Name="Poll" Id="{7d5c78d1-244c-4a26-b9a6-598eb36f03cc}">
+      <Declaration><![CDATA[METHOD Poll : E_MbXferState
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF eState = E_MbXferState.Busy THEN
+	IF nCountdown > 0 THEN
+		nCountdown := nCountdown - 1;
+	ELSE
+		Respond();
+	END_IF
+END_IF
+Poll := eState;]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="pResponsePdu" Id="{935a5e76-cfc5-489a-a645-41b8ceeebde5}">
+      <Declaration><![CDATA[PROPERTY pResponsePdu : POINTER TO BYTE]]></Declaration>
+      <Get Name="Get" Id="{e2af055e-4ed1-4f68-a508-ec70a76872b2}">
+        <Declaration><![CDATA[]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[pResponsePdu := ADR(aResp);]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Method Name="Release" Id="{710c85bc-3f6c-44f2-8052-a000a78d365d}">
+      <Declaration><![CDATA[METHOD Release
+VAR_INPUT
+	nUnitId	: USINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF nOwner = nUnitId THEN
+	nOwner := 0;
+	eState := E_MbXferState.Idle;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Respond" Id="{9d884948-8752-4c5e-8dc5-76bd60f5899b}">
+      <Declaration><![CDATA[METHOD PRIVATE Respond
+VAR
+	nFc      : USINT;
+	nOff     : UINT;
+	nQty     : UINT;
+	nByteCnt : UINT;
+	i        : UINT;
+	w        : WORD;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF bForceTimeout THEN
+	eState := E_MbXferState.Timeout;
+	RETURN;
+END_IF
+IF bForceCrc THEN
+	eState := E_MbXferState.Error;
+	eErr   := E_MbErrorClass.Crc;
+	RETURN;
+END_IF
+
+nFc  := BYTE_TO_USINT(aReq[0]);
+nOff := nLastOffset;
+nQty := nLastQty;
+
+IF bForceException THEN
+	SendException(nForcedExc);
+	RETURN;
+END_IF
+
+CASE nFc OF
+	GVL_MbConst.FC_READ_COILS, GVL_MbConst.FC_READ_DISCRETE:
+		IF nQty < 1 OR nQty > GVL_MbConst.MAX_READ_COILS OR UINT_TO_UDINT(nOff) + nQty > 1000 THEN
+			SendException(2);
+			RETURN;
+		END_IF
+		nByteCnt := (nQty + 7) / 8;
+		aResp[0] := aReq[0];
+		aResp[1] := UINT_TO_BYTE(nByteCnt);
+		MEMSET(ADR(aResp[2]), 0, nByteCnt);
+		FOR i := 0 TO nQty - 1 DO
+			IF SEL(nFc = GVL_MbConst.FC_READ_COILS, aDiscrete[nOff + i], aCoils[nOff + i]) THEN
+				aResp[2 + i / 8] := aResp[2 + i / 8] OR SHL(BYTE#1, i MOD 8);
+			END_IF
+		END_FOR
+		cbResp := 2 + nByteCnt;
+
+	GVL_MbConst.FC_READ_HOLDING, GVL_MbConst.FC_READ_INPUT:
+		IF nQty < 1 OR nQty > GVL_MbConst.MAX_READ_REGS OR UINT_TO_UDINT(nOff) + nQty > 1000 THEN
+			SendException(2);
+			RETURN;
+		END_IF
+		IF bExcOnRange AND nExcOffset >= nOff AND nExcOffset < nOff + nQty THEN
+			SendException(2);
+			RETURN;
+		END_IF
+		aResp[0] := aReq[0];
+		aResp[1] := UINT_TO_BYTE(2 * nQty);
+		FOR i := 0 TO nQty - 1 DO
+			IF nFc = GVL_MbConst.FC_READ_HOLDING THEN
+				w := aHolding[nOff + i];
+			ELSE
+				w := aInput[nOff + i];
+			END_IF
+			aResp[2 + 2 * i] := WORD_TO_BYTE(SHR(w, 8));
+			aResp[3 + 2 * i] := WORD_TO_BYTE(w);
+		END_FOR
+		cbResp := 2 + 2 * nQty;
+
+	GVL_MbConst.FC_WRITE_COIL:
+		IF nOff >= 1000 THEN
+			SendException(2);
+			RETURN;
+		END_IF
+		IF nQty = 16#FF00 THEN
+			aCoils[nOff] := TRUE;
+		ELSIF nQty = 0 THEN
+			aCoils[nOff] := FALSE;
+		ELSE
+			SendException(3);
+			RETURN;
+		END_IF
+		MEMCPY(ADR(aResp), ADR(aReq), 5);
+		cbResp := 5;
+
+	GVL_MbConst.FC_WRITE_REGISTER:
+		IF nOff >= 1000 THEN
+			SendException(2);
+			RETURN;
+		END_IF
+		aHolding[nOff] := UINT_TO_WORD(nQty);
+		MEMCPY(ADR(aResp), ADR(aReq), 5);
+		cbResp := 5;
+
+	GVL_MbConst.FC_WRITE_COILS:
+		nByteCnt := (nQty + 7) / 8;
+		IF nQty < 1 OR nQty > GVL_MbConst.MAX_WRITE_COILS OR UINT_TO_UDINT(nOff) + nQty > 1000 OR cbReq < 6 + nByteCnt THEN
+			SendException(2);
+			RETURN;
+		END_IF
+		FOR i := 0 TO nQty - 1 DO
+			aCoils[nOff + i] := (aReq[6 + i / 8] AND SHL(BYTE#1, i MOD 8)) <> 0;
+		END_FOR
+		MEMCPY(ADR(aResp), ADR(aReq), 5);
+		cbResp := 5;
+
+	GVL_MbConst.FC_WRITE_REGISTERS:
+		IF nQty < 1 OR nQty > GVL_MbConst.MAX_WRITE_REGS OR UINT_TO_UDINT(nOff) + nQty > 1000 OR cbReq < 6 + 2 * nQty THEN
+			SendException(2);
+			RETURN;
+		END_IF
+		FOR i := 0 TO nQty - 1 DO
+			aHolding[nOff + i] := SHL(BYTE_TO_WORD(aReq[6 + 2 * i]), 8) OR BYTE_TO_WORD(aReq[7 + 2 * i]);
+		END_FOR
+		MEMCPY(ADR(aResp), ADR(aReq), 5);
+		cbResp := 5;
+ELSE
+	SendException(1);
+	RETURN;
+END_CASE
+
+eState := E_MbXferState.Done;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Send" Id="{1740f208-a30c-4d4e-af5c-c563143beb3d}">
+      <Declaration><![CDATA[METHOD Send : BOOL
+VAR_INPUT
+	nUnitId	: USINT;
+	pPdu	: POINTER TO BYTE;
+	cbPdu	: UINT;
+	(* From F_MbExpectedResponseLength; RTU uses it to detect end of frame*)
+	nExpectedPduLen	: UINT;
+	tTimeout	: TIME;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Send := FALSE;
+IF nOwner <> nUnitId OR NOT bReadyIn OR pPdu = 0 OR cbPdu < 1 OR cbPdu > GVL_MbParam.MB_ADU_SIZE THEN
+	RETURN;
+END_IF
+MEMCPY(ADR(aReq), pPdu, cbPdu);
+cbReq      := cbPdu;
+cbResp     := 0;
+nCountdown := nDelayCycles;
+eState     := E_MbXferState.Busy;
+eErr       := E_MbErrorClass.None;
+nLastUnit  := nUnitId;
+nLastFc    := BYTE_TO_USINT(aReq[0]);
+IF cbReq >= 5 THEN
+	nLastOffset := SHL(BYTE_TO_UINT(aReq[1]), 8) + BYTE_TO_UINT(aReq[2]);
+	nLastQty    := SHL(BYTE_TO_UINT(aReq[3]), 8) + BYTE_TO_UINT(aReq[4]);
+END_IF
+nRequests := nRequests + 1;
+Send := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="SendException" Id="{8626d6ed-0be5-4340-8a6b-8a254c321829}">
+      <Declaration><![CDATA[METHOD PRIVATE SendException
+VAR_INPUT
+	nCode : BYTE;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[aResp[0] := aReq[0] OR GVL_MbConst.EXC_FLAG;
+aResp[1] := nCode;
+cbResp   := 2;
+eState   := E_MbXferState.Done;   // An exception is a valid frame; the device's parser classifies it]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>
