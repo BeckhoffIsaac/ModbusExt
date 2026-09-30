@@ -5,6 +5,7 @@ namespace ModbusExt.ProfileEditor;
 sealed class MainForm : Form
 {
     // Toolbar
+    readonly FlowLayoutPanel _bar = new() { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(4), WrapContents = true };
     readonly ComboBox _instances = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 300 };
     readonly Button   _refresh    = Btn("Refresh");
     readonly Button   _new        = Btn("New profile", false);
@@ -22,6 +23,7 @@ sealed class MainForm : Form
     readonly Button   _export     = Btn("Export CSV…", false);
 
     // Profile settings
+    readonly FlowLayoutPanel _settings = new() { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(4), WrapContents = true };
     readonly TextBox       _modelName  = new() { Width = 150 };
     readonly ComboBox      _wordOrder  = MakeCombo(Enums.WordOrders[1..]);
     readonly ComboBox      _addressing = MakeCombo(Enums.Addressing);
@@ -55,15 +57,12 @@ sealed class MainForm : Form
         Text = "ModbusExt Profile Editor";
         Width = 1500; Height = 850;
 
-        var bar = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(4), WrapContents = false };
-        bar.Controls.AddRange(new Control[]
+        _bar.Controls.AddRange(new Control[]
         {
             _instances, _refresh, Gap(), _new, _save, _revert, _undo, _preview, _buildAfter, Gap(),
             _addRow, _delRow, _up, _down, Gap(), _import, _paste, _export
         });
-
-        var settings = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(4), WrapContents = false };
-        settings.Controls.AddRange(new Control[]
+        _settings.Controls.AddRange(new Control[]
         {
             Lbl("Model"), _modelName, Lbl("Word order"), _wordOrder, Lbl("Addressing"), _addressing,
             Lbl("Max regs/read"), _maxRegs, Lbl("Max gap"), _maxGap, _fc6, _fc16, _swap, Lbl("Slow poll"), _slowPoll
@@ -73,8 +72,8 @@ sealed class MainForm : Form
         Controls.Add(_grid);
         Controls.Add(_issues);
         Controls.Add(_profiles);
-        Controls.Add(settings);
-        Controls.Add(bar);
+        Controls.Add(_settings);
+        Controls.Add(_bar);
 
         _refresh.Click += (_, _) => Guard(RefreshInstances);
         _instances.SelectedIndexChanged += (_, _) => Guard(Connect);
@@ -84,7 +83,7 @@ sealed class MainForm : Form
         _revert.Click  += (_, _) => Guard(LoadSelected);
         _undo.Click    += (_, _) => Guard(UndoSave);
         _preview.Click += (_, _) => Guard(Preview);
-        _addRow.Click  += (_, _) => { _rows.Add(new PointRow { Name = "NewPoint", Address = 40001 }); ValidateProfile(); };
+        _addRow.Click  += (_, _) => { if (_profile != null) { _rows.Add(new PointRow { Name = "NewPoint", Address = 40001 }); ValidateProfile(); } };
         _delRow.Click  += (_, _) => { if (_grid.CurrentRow != null) { _rows.RemoveAt(_grid.CurrentRow.Index); ValidateProfile(); } };
         _up.Click      += (_, _) => MoveRow(-1);
         _down.Click    += (_, _) => MoveRow(+1);
@@ -104,6 +103,7 @@ sealed class MainForm : Form
         _maxGap.ValueChanged  += (_, _) => SettingsChanged();
         foreach (var cb in new[] { _fc6, _fc16, _swap }) cb.CheckedChanged += (_, _) => SettingsChanged();
 
+        ClearEditor();
         Load += (_, _) => Guard(RefreshInstances);
     }
 
@@ -130,6 +130,7 @@ sealed class MainForm : Form
 
     void Connect()
     {
+        ClearEditor();
         _session = new XaeSession(_dtes[_instances.SelectedIndex].Obj);
         Text = $"ModbusExt Profile Editor — {_session.SolutionName}";
         _found = _session.FindProfiles();
@@ -139,9 +140,24 @@ sealed class MainForm : Form
         if (_found.Count == 0) _issues.Items.Add("No profiles found in the open solution. Use New profile.");
     }
 
+    void ClearEditor()
+    {
+        _loading = true;
+        _current = null;
+        _profile = null;
+        _rows.Clear();
+        _modelName.Text = "";
+        _slowPoll.Text  = "";
+        _loading = false;
+        _issues.Items.Clear();
+        _grid.Enabled = _settings.Enabled = false;
+        _save.Enabled = _revert.Enabled = _preview.Enabled = _import.Enabled = _paste.Enabled = _export.Enabled = false;
+    }
+
     void LoadSelected()
     {
-        if (_profiles.SelectedIndex < 0) return;
+        if (_profiles.SelectedIndex < 0) { ClearEditor(); return; }
+        _grid.Enabled = _settings.Enabled = true;
         _current = _found[_profiles.SelectedIndex];
         var texts = XaeSession.Read(_current);
         _profile = ProfileParser.Parse(texts.Declaration, texts.Register);
@@ -232,6 +248,7 @@ sealed class MainForm : Form
 
     void ImportCsv()
     {
+        if (_profile == null) return;
         using var dlg = new OpenFileDialog { Filter = "CSV files|*.csv|All files|*.*" };
         if (dlg.ShowDialog(this) != DialogResult.OK) return;
         MergeRows(CsvTable.Read(File.ReadAllText(dlg.FileName), ','));
@@ -239,6 +256,7 @@ sealed class MainForm : Form
 
     void PasteTable()
     {
+        if (_profile == null) return;
         string text = Clipboard.GetText();
         if (string.IsNullOrWhiteSpace(text))
             throw new InvalidOperationException("Clipboard is empty. Copy a table with a header row from Excel first.");
