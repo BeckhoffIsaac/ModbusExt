@@ -5,16 +5,21 @@ namespace ModbusExt.ProfileEditor;
 sealed class MainForm : Form
 {
     // Toolbar
-	readonly ComboBox _instances = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 300 };
-	readonly Button _refresh = Btn("Refresh");
-	readonly Button _save    = Btn("Save to XAE", false);
-	readonly Button _revert  = Btn("Revert", false);
-	readonly Button _undo    = Btn("Undo last save", false);
-	readonly Button _preview = Btn("Preview code", false);
-	readonly Button _addRow  = Btn("Add point");
-	readonly Button _delRow  = Btn("Delete point");
-	readonly Button _up      = Btn("Up");
-	readonly Button _down    = Btn("Down");
+    readonly ComboBox _instances = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 300 };
+    readonly Button   _refresh    = Btn("Refresh");
+    readonly Button   _new        = Btn("New profile", false);
+    readonly Button   _save       = Btn("Save to XAE", false);
+    readonly Button   _revert     = Btn("Revert", false);
+    readonly Button   _undo       = Btn("Undo last save", false);
+    readonly Button   _preview    = Btn("Preview code", false);
+    readonly CheckBox _buildAfter = new() { Text = "Build after save", AutoSize = true, Margin = new Padding(8, 6, 0, 0) };
+    readonly Button   _addRow     = Btn("Add point");
+    readonly Button   _delRow     = Btn("Delete point");
+    readonly Button   _up         = Btn("Up");
+    readonly Button   _down       = Btn("Down");
+    readonly Button   _import     = Btn("Import CSV…", false);
+    readonly Button   _paste      = Btn("Paste table", false);
+    readonly Button   _export     = Btn("Export CSV…", false);
 
     // Profile settings
     readonly TextBox       _modelName  = new() { Width = 150 };
@@ -48,10 +53,14 @@ sealed class MainForm : Form
     public MainForm()
     {
         Text = "ModbusExt Profile Editor";
-        Width = 1400; Height = 850;
+        Width = 1500; Height = 850;
 
         var bar = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(4), WrapContents = false };
-        bar.Controls.AddRange(new Control[] { _instances, _refresh, Gap(), _save, _revert, _undo, _preview, Gap(), _addRow, _delRow, _up, _down });
+        bar.Controls.AddRange(new Control[]
+        {
+            _instances, _refresh, Gap(), _new, _save, _revert, _undo, _preview, _buildAfter, Gap(),
+            _addRow, _delRow, _up, _down, Gap(), _import, _paste, _export
+        });
 
         var settings = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(4), WrapContents = false };
         settings.Controls.AddRange(new Control[]
@@ -70,14 +79,18 @@ sealed class MainForm : Form
         _refresh.Click += (_, _) => Guard(RefreshInstances);
         _instances.SelectedIndexChanged += (_, _) => Guard(Connect);
         _profiles.SelectedIndexChanged += (_, _) => Guard(LoadSelected);
+        _new.Click     += (_, _) => Guard(NewProfile);
+        _save.Click    += (_, _) => Guard(Save);
         _revert.Click  += (_, _) => Guard(LoadSelected);
         _undo.Click    += (_, _) => Guard(UndoSave);
         _preview.Click += (_, _) => Guard(Preview);
-        _save.Click    += (_, _) => Guard(Save);
         _addRow.Click  += (_, _) => { _rows.Add(new PointRow { Name = "NewPoint", Address = 40001 }); ValidateProfile(); };
         _delRow.Click  += (_, _) => { if (_grid.CurrentRow != null) { _rows.RemoveAt(_grid.CurrentRow.Index); ValidateProfile(); } };
         _up.Click      += (_, _) => MoveRow(-1);
         _down.Click    += (_, _) => MoveRow(+1);
+        _import.Click  += (_, _) => Guard(ImportCsv);
+        _paste.Click   += (_, _) => Guard(PasteTable);
+        _export.Click  += (_, _) => Guard(ExportCsv);
 
         _grid.CellValueChanged += (_, _) => { if (!_loading) Guard(ValidateProfile); };
         _grid.CurrentCellDirtyStateChanged += (_, _) => { if (_grid.IsCurrentCellDirty) _grid.CommitEdit(DataGridViewDataErrorContexts.Commit); };
@@ -122,7 +135,8 @@ sealed class MainForm : Form
         _found = _session.FindProfiles();
         _profiles.Items.Clear();
         foreach (var p in _found) _profiles.Items.Add($"{p.PlcName} / {p.Name}");
-        if (_found.Count == 0) _issues.Items.Add("No profiles found in the open solution.");
+        _new.Enabled = true;
+        if (_found.Count == 0) _issues.Items.Add("No profiles found in the open solution. Use New profile.");
     }
 
     void LoadSelected()
@@ -146,21 +160,22 @@ sealed class MainForm : Form
         foreach (var p in _profile.Points) _rows.Add(p);
         _loading = false;
 
-        _revert.Enabled = _preview.Enabled = true;
+        _revert.Enabled = _preview.Enabled = _import.Enabled = _paste.Enabled = _export.Enabled = true;
         ValidateProfile();
         foreach (var w in _profile.Warnings) _issues.Items.Add("Note: " + w);
     }
 
     void Save()
     {
-        if (_profile == null || _current == null) return;
+        if (_profile == null || _current == null || _session == null) return;
         ValidateProfile();
         if (!_save.Enabled) return;
         _undoTexts = XaeSession.Read(_current);
         XaeSession.Write(_current, ProfileWriter.Declaration(_profile), ProfileWriter.Body(), ProfileWriter.Register(_profile));
         _undo.Enabled = true;
         LoadSelected();                                  // Re-read from XAE: what you see is what landed
-        _issues.Items.Insert(0, "Saved to XAE. Build the PLC project to compile it.");
+        _issues.Items.Insert(0, "Saved to XAE.");
+        if (_buildAfter.Checked) _session.BuildSolution();
     }
 
     void UndoSave()
@@ -170,6 +185,82 @@ sealed class MainForm : Form
         _undoTexts = null;
         _undo.Enabled = false;
         LoadSelected();
+    }
+
+    void NewProfile()
+    {
+        if (_session == null) return;
+        var plcs = _session.PlcProjects();
+        if (plcs.Count == 0) throw new InvalidOperationException("No PLC projects in the solution.");
+
+        using var dlg = new Form
+        {
+            Text = "New profile", Width = 440, Height = 200, FormBorderStyle = FormBorderStyle.FixedDialog,
+            StartPosition = FormStartPosition.CenterParent, MaximizeBox = false, MinimizeBox = false
+        };
+        var plc   = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 280 };
+        plc.Items.AddRange(plcs.ToArray());
+        plc.SelectedIndex = 0;
+        var model = new TextBox { Width = 280 };
+        var fb    = new TextBox { Width = 280, Text = "FB_Mb_" };
+        model.TextChanged += (_, _) => fb.Text = "FB_Mb_" + new string(model.Text.Where(ch => char.IsLetterOrDigit(ch) || ch == '_').ToArray());
+        var ok = new Button { Text = "Create", DialogResult = DialogResult.OK, AutoSize = true };
+        var table = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, Padding = new Padding(8) };
+        table.Controls.Add(Lbl("PLC project"), 0, 0); table.Controls.Add(plc, 1, 0);
+        table.Controls.Add(Lbl("Model"), 0, 1);       table.Controls.Add(model, 1, 1);
+        table.Controls.Add(Lbl("FB name"), 0, 2);     table.Controls.Add(fb, 1, 2);
+        table.Controls.Add(ok, 1, 3);
+        dlg.Controls.Add(table);
+        dlg.AcceptButton = ok;
+        if (dlg.ShowDialog(this) != DialogResult.OK) return;
+
+        var m = new ProfileModel { FbName = fb.Text.Trim(), Model = model.Text.Trim() };
+        m.Points.Add(new PointRow { Name = "Point1", Address = 40001, Comment = "replace me" });
+        var issues = ProfileValidator.Validate(m);
+        if (issues.Count > 0) throw new InvalidOperationException(string.Join("\n", issues.Select(i => i.Message)));
+        if (_found.Any(p => p.Name.Equals(m.FbName, StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidOperationException($"{m.FbName} already exists.");
+
+        var pou = _session.CreateProfile((string)plc.SelectedItem!, m.FbName,
+                                         ProfileWriter.Declaration(m), ProfileWriter.Body(), ProfileWriter.Register(m));
+        _found.Add(pou);
+        _profiles.Items.Add($"{pou.PlcName} / {pou.Name}");
+        _profiles.SelectedIndex = _profiles.Items.Count - 1;
+    }
+
+    // ---- Import / export ----
+
+    void ImportCsv()
+    {
+        using var dlg = new OpenFileDialog { Filter = "CSV files|*.csv|All files|*.*" };
+        if (dlg.ShowDialog(this) != DialogResult.OK) return;
+        MergeRows(CsvTable.Read(File.ReadAllText(dlg.FileName), ','));
+    }
+
+    void PasteTable()
+    {
+        string text = Clipboard.GetText();
+        if (string.IsNullOrWhiteSpace(text))
+            throw new InvalidOperationException("Clipboard is empty. Copy a table with a header row from Excel first.");
+        MergeRows(CsvTable.Read(text, text.Contains('\t') ? '\t' : ','));
+    }
+
+    void MergeRows(List<PointRow> rows)
+    {
+        var r = MessageBox.Show($"{rows.Count} rows read.\n\nYes = replace the current points\nNo = append to them",
+                                "Import", MessageBoxButtons.YesNoCancel);
+        if (r == DialogResult.Cancel) return;
+        if (r == DialogResult.Yes) _rows.Clear();
+        foreach (var p in rows) _rows.Add(p);
+        ValidateProfile();
+    }
+
+    void ExportCsv()
+    {
+        if (_profile == null) return;
+        using var dlg = new SaveFileDialog { Filter = "CSV files|*.csv", FileName = $"{_profile.FbName}.csv" };
+        if (dlg.ShowDialog(this) != DialogResult.OK) return;
+        File.WriteAllText(dlg.FileName, CsvTable.Write(_rows));
     }
 
     // ---- Editing ----
@@ -261,6 +352,7 @@ sealed class MainForm : Form
         return c;
     }
 
+    static Button  Btn(string text, bool enabled = true) => new() { Text = text, AutoSize = true, Enabled = enabled };
     static Label   Lbl(string t) => new() { Text = t, AutoSize = true, Margin = new Padding(8, 8, 2, 0) };
     static Control Gap()         => new Label { Width = 16 };
 
@@ -269,6 +361,4 @@ sealed class MainForm : Form
         try { a(); }
         catch (Exception ex) { MessageBox.Show(ex.Message, "XAE", MessageBoxButtons.OK, MessageBoxIcon.Error); }
     }
-	
-	static Button Btn(string text, bool enabled = true) => new() { Text = text, AutoSize = true, Enabled = enabled };
 }
