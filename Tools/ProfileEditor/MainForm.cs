@@ -5,17 +5,20 @@ namespace ModbusExt.ProfileEditor;
 sealed class MainForm : Form
 {
     // Toolbar
-    readonly ToolStrip _tools = new() { GripStyle = ToolStripGripStyle.Hidden, RenderMode = ToolStripRenderMode.System, Padding = new Padding(6, 2, 6, 2) };
-    readonly ToolStripDropDownButton _tsNew = new("New") { DisplayStyle = ToolStripItemDisplayStyle.Text };
+	readonly ToolStrip _tools = new()
+	{
+		GripStyle = ToolStripGripStyle.Hidden, RenderMode = ToolStripRenderMode.System,
+		AutoSize = false, Height = 44, Padding = new Padding(8, 4, 8, 4)
+	};
+    readonly ToolStripDropDownButton _tsNew = new("New") { DisplayStyle = ToolStripItemDisplayStyle.Text, Padding = new Padding(6, 0, 6, 0) };
     readonly ToolStripMenuItem _tsNewProfile = new("Profile…");
     readonly ToolStripMenuItem _tsNewChannel = new("Channel…") { Enabled = false };
     readonly ToolStripMenuItem _tsNewDevice  = new("Device…")  { Enabled = false };
     readonly ToolStripButton _tsSave = Tb("Save"), _tsRevert = Tb("Revert"), _tsUndo = Tb("Undo save");
     readonly ToolStripButton _tsAdd = Tb("Add point"), _tsDel = Tb("Delete"), _tsUp = Tb("Up"), _tsDown = Tb("Down");
-    readonly ToolStripDropDownButton _tsMore = new("More") { DisplayStyle = ToolStripItemDisplayStyle.Text };
+    readonly ToolStripDropDownButton _tsMore = new("More") { DisplayStyle = ToolStripItemDisplayStyle.Text, Padding = new Padding(6, 0, 6, 0) };
     readonly ToolStripMenuItem _tsPreview = new("Preview code"), _tsImport = new("Import CSV…"), _tsPaste = new("Paste table"), _tsExport = new("Export CSV…");
-    readonly ToolStripButton _tsBuild = new("Build after save") { CheckOnClick = true, DisplayStyle = ToolStripItemDisplayStyle.Text };
-
+	readonly ToolStripButton _tsBuild = new("Build after save") { CheckOnClick = true, DisplayStyle = ToolStripItemDisplayStyle.Text, Padding = new Padding(6, 0, 6, 0) };
     // Status bar
     readonly StatusStrip _status = new() { SizingGrip = false };
     readonly ToolStripStatusLabel _ssSolution = new("Not connected") { Spring = true, TextAlign = ContentAlignment.MiddleLeft };
@@ -440,8 +443,7 @@ sealed class MainForm : Form
 		return node;
 	}
 
-    static ToolStripButton Tb(string text) => new(text) { DisplayStyle = ToolStripItemDisplayStyle.Text };
-
+	static ToolStripButton Tb(string text) => new(text) { DisplayStyle = ToolStripItemDisplayStyle.Text, Padding = new Padding(6, 0, 6, 0) };
     static DataGridViewColumn Col(string prop, int w) => new DataGridViewTextBoxColumn
     {
         Name = prop, DataPropertyName = prop, HeaderText = prop, Width = w,
