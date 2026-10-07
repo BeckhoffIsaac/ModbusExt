@@ -149,7 +149,7 @@ sealed class MainForm : Form
         foreach (var cb in new[] { _fc6, _fc16, _swap }) cb.CheckedChanged += (_, _) => SettingsChanged();
 
         ClearEditor();
-        Load += (_, _) => Guard(RefreshInstances);
+        Load += (_, _) => { _split.SplitterDistance = 340; Guard(RefreshInstances); };
     }
 
     void BuildGrid()
