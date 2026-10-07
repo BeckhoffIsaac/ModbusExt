@@ -5,6 +5,7 @@
 FUNCTION_BLOCK FB_Mb_TestValve123 EXTENDS FB_ModbusDevice
 VAR_INPUT
 	Point1 : ST_MbPoint := (nAddr := 40001);   // replace me
+	Level  : ST_MbPoint := (nAddr := 40002, eType := E_MbType.Int16);
 END_VAR
 ]]></Declaration>
     <Implementation>
@@ -18,6 +19,7 @@ SUPER^();
       <Implementation>
         <ST><![CDATA[Profile(sModel := 'TestValve123');
 AddPoint(Point1, 'Point1');
+AddPoint(Level, 'Level');
 ]]></ST>
       </Implementation>
     </Method>

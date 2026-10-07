@@ -32,7 +32,13 @@
     <Compile Include="POUs\MAIN.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="POUs\Profiles\FB_Mb_AbbCorMeter.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="POUs\Profiles\FB_Mb_DiagDemo.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\Profiles\FB_Mb_FlowMeter.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="POUs\Profiles\FB_Mb_TestGood.TcPOU">

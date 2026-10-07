@@ -111,7 +111,7 @@
 				</Instance>
 			</Project>
 			<Project GUID="{32C3D8C5-3835-4C89-B21A-9B01BDD4CE8B}" Name="ModbusExt_Sample" PrjFilePath="ModbusExt_Sample\ModbusExt_Sample.plcproj" TmcFilePath="ModbusExt_Sample\ModbusExt_Sample.tmc" ReloadTmc="true" AmsPort="853" FileArchiveSettings="#x000e" SymbolicMapping="true">
-				<Instance Id="#x08502080" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{248367AB-376F-5F34-6BF0-8A19AC38C9DD}" TmcPath="ModbusExt_Sample\ModbusExt_Sample.tmc">
+				<Instance Id="#x08502080" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{6DF73ACF-5AFE-5BC2-7B1A-B357E528E6A4}" TmcPath="ModbusExt_Sample\ModbusExt_Sample.tmc">
 					<Name>ModbusExt_Sample Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="2" AreaNo="1">

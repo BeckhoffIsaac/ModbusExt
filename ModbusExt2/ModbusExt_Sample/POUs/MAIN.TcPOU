@@ -30,6 +30,7 @@ IF bWriteSetpoint AND NOT fbDemo.Setpoint.bWriteReq AND NOT fbDemo.Setpoint.bWri
 	fbDemo.Setpoint.fWriteValue := fSetpointCmd;
 	fbDemo.Setpoint.bWriteReq   := TRUE;
 END_IF
+
 IF fbDemo.Setpoint.bWriteDone OR fbDemo.Setpoint.bWriteErr THEN
 	fbDemo.Setpoint.bWriteReq := FALSE;
 	bWriteSetpoint            := FALSE;

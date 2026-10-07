@@ -1,0 +1,31 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_Mb_FlowMeter" Id="{e8897ee6-8560-48a2-ada6-b27ab176b341}" SpecialFunc="None">
+    <Declaration><![CDATA[(*@ModbusExt.Profile v1 - managed by ModbusExt Profile Editor. One point per line.*)
+FUNCTION_BLOCK FB_Mb_FlowMeter EXTENDS FB_ModbusDevice
+VAR_INPUT
+	Pressure : ST_MbPoint := (nAddr := 40001, eType := E_MbType.Int16, fRawMin := -16000, fRawMax := 16000, fEngMin := 0, fEngMax := 120);   // replace me
+	Temp     : ST_MbPoint := (nAddr := 40002, eType := E_MbType.Int16, fGain := 1.8, fOffset := 32);
+	Flow     : ST_MbPoint := (nAddr := 40003);
+	Viscos   : ST_MbPoint := (nAddr := 40004);
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[Register();
+SUPER^();
+]]></ST>
+    </Implementation>
+    <Method Name="Register" Id="{6c1c5208-154f-4b64-a6c9-1d09a1035aa7}">
+      <Declaration><![CDATA[METHOD PRIVATE Register
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Profile(sModel := 'FlowMeter');
+AddPoint(Pressure, 'Pressure');
+AddPoint(Temp, 'Temp');
+AddPoint(Flow, 'Flow');
+AddPoint(Viscos, 'Viscos');
+]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,29 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_Mb_CorrAll" Id="{9d4225ed-454f-44d6-be82-bf7979075f4a}" SpecialFunc="None">
+    <Declaration><![CDATA[(*@ModbusExt.Profile v1 - managed by ModbusExt Profile Editor. One point per line.*)
+FUNCTION_BLOCK FB_Mb_CorrAll EXTENDS FB_ModbusDevice
+VAR_INPUT
+	Viscus : ST_MbPoint := (nAddr := 40001, eType := E_MbType.Int16, fRawMin := -16000, fRawMax := 16000, fEngMin := 0, fEngMax := 20);   // replace me
+	Flow   : ST_MbPoint := (nAddr := 40002, eType := E_MbType.Int16);
+	Temp   : ST_MbPoint := (nAddr := 40003, fGain := 1.8, fOffset := 32);
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[Register();
+SUPER^();
+]]></ST>
+    </Implementation>
+    <Method Name="Register" Id="{ece804a9-9a79-442d-a1d5-a88d8d75e834}">
+      <Declaration><![CDATA[METHOD PRIVATE Register
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Profile(sModel := 'CorrAll');
+AddPoint(Viscus, 'Viscus');
+AddPoint(Flow, 'Flow');
+AddPoint(Temp, 'Temp');
+]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>
