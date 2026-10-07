@@ -23,8 +23,12 @@ sealed class MainForm : Form
     readonly ToolStripDropDownButton _ssInstance = new("XAE") { DisplayStyle = ToolStripItemDisplayStyle.Text };
 
     // Navigation
-    readonly SplitContainer _split = new() { Dock = DockStyle.Fill, SplitterDistance = 280, FixedPanel = FixedPanel.Panel1 };
-    readonly TreeView _tree = new() { Dock = DockStyle.Fill, HideSelection = false, BorderStyle = BorderStyle.None, ShowLines = false, FullRowSelect = true };
+	readonly SplitContainer _split = new()
+	{
+		Dock = DockStyle.Fill, FixedPanel = FixedPanel.Panel1,
+		SplitterWidth = 1, BackColor = Color.FromArgb(215, 215, 215)   // The splitter itself becomes the 1 px line
+	};    
+	readonly TreeView _tree = new() { Dock = DockStyle.Fill, HideSelection = false, BorderStyle = BorderStyle.None, ShowLines = false, FullRowSelect = true };
     readonly TreeNode _nProfiles = new("Profiles"), _nChannels = new("Channels"), _nDevices = new("Devices");
 
     // Profile card
@@ -86,6 +90,8 @@ sealed class MainForm : Form
         // Tree
         _tree.Nodes.AddRange(new[] { _nProfiles, _nChannels, _nDevices });
         _split.Panel1.Controls.Add(_tree);
+		_split.Panel1.BackColor = Color.White;
+		_split.Panel2.BackColor = Color.White;
         _split.Panel1.Padding = new Padding(4);
 
         // Card
@@ -187,17 +193,18 @@ sealed class MainForm : Form
     }
 
     void Connect(object dte)
-    {
-        ClearEditor();
-        _session = new XaeSession(dte);
-        _ssSolution.Text = _session.SolutionName;
-        _found = _session.FindProfiles();
-        _nProfiles.Nodes.Clear();
-        foreach (var p in _found) _nProfiles.Nodes.Add(new TreeNode($"{p.PlcName} / {p.Name}") { Tag = p });
-        _tree.ExpandAll();
-        _tsNew.Enabled = true;
-        if (_found.Count == 0) SetState("No profiles in this solution — New › Profile…", false);
-    }
+	{
+		ClearEditor();
+		_session = new XaeSession(dte);
+		_ssSolution.Text = _session.SolutionName;
+		_found = _session.FindProfiles();
+		_nProfiles.Nodes.Clear();
+		foreach (var plc in _session.PlcProjects()) PlcNode(plc);                       // Categories, even when empty
+		foreach (var p in _found) PlcNode(p.PlcName).Nodes.Add(new TreeNode(p.Name) { Tag = p });
+		_tree.ExpandAll();
+		_tsNew.Enabled = true;
+		if (_found.Count == 0) SetState("No profiles in this solution — New › Profile…", false);
+	}
 
     void ClearEditor()
     {
@@ -296,9 +303,9 @@ sealed class MainForm : Form
 
         var pou = _session.CreateProfile((string)plc.SelectedItem!, m.FbName, ProfileWriter.Declaration(m), ProfileWriter.Body(), ProfileWriter.Register(m));
         _found.Add(pou);
-        var node = new TreeNode($"{pou.PlcName} / {pou.Name}") { Tag = pou };
-        _nProfiles.Nodes.Add(node);
-        _tree.SelectedNode = node;
+		var node = new TreeNode(pou.Name) { Tag = pou };
+		PlcNode(pou.PlcName).Nodes.Add(node);
+		_tree.SelectedNode = node;
     }
 
     // ---- Import / export ----
@@ -415,6 +422,15 @@ sealed class MainForm : Form
         _ssState.Text = text;
         _ssState.ForeColor = ok ? Color.FromArgb(0, 120, 60) : Color.Firebrick;
     }
+	
+	TreeNode PlcNode(string plcName)
+	{
+		foreach (TreeNode n in _nProfiles.Nodes)
+			if (n.Text.TrimEnd() == plcName) return n;
+		var node = new TreeNode(plcName + "  ") { NodeFont = new Font(Font, FontStyle.Bold), ForeColor = Color.FromArgb(60, 60, 60) };
+		_nProfiles.Nodes.Add(node);
+		return node;
+	}
 
     static ToolStripButton Tb(string text) => new(text) { DisplayStyle = ToolStripItemDisplayStyle.Text };
 
