@@ -133,11 +133,12 @@ sealed class MainForm : Form
         _grid.CellValueChanged += (_, _) => { if (!_loading) Guard(ValidateProfile); };
         _grid.CurrentCellDirtyStateChanged += (_, _) => { if (_grid.IsCurrentCellDirty) _grid.CommitEdit(DataGridViewDataErrorContexts.Commit); };
         _grid.DataError += (_, e) => { e.ThrowException = false; };
-        _grid.CellContentClick += (_, e) => { if (e.RowIndex >= 0 && _grid.Columns[e.ColumnIndex].Name == "Details") Guard(() => EditDetails(e.RowIndex)); };
-        _grid.CellFormatting += (_, e) =>
+        _grid.CellContentClick += (_, e) =>
         {
-            if (e.RowIndex >= 0 && _grid.Columns[e.ColumnIndex].Name == "ScaleMark")
-                _grid.Rows[e.RowIndex].Cells[e.ColumnIndex].ToolTipText = _rows[e.RowIndex].ScalingSummary;
+            if (e.RowIndex < 0) return;
+            string col = _grid.Columns[e.ColumnIndex].Name;
+            if (col == "ScaleEdit") Guard(() => EditScaling(e.RowIndex));
+            else if (col == "Details") Guard(() => EditDetails(e.RowIndex));
         };
 
         _modelName.TextChanged += (_, _) => SettingsChanged();
@@ -160,15 +161,14 @@ sealed class MainForm : Form
         _grid.DefaultCellStyle.SelectionBackColor = Color.FromArgb(220, 235, 252);
         _grid.DefaultCellStyle.SelectionForeColor = Color.Black;
         _grid.DefaultCellStyle.Padding = new Padding(2);
-
-        var mark = new DataGridViewTextBoxColumn { Name = "ScaleMark", DataPropertyName = "ScaleMark", HeaderText = "Scale", Width = 52, ReadOnly = true };
-        mark.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-        mark.DefaultCellStyle.ForeColor = Color.FromArgb(0, 102, 204);
-        var details = new DataGridViewButtonColumn { Name = "Details", HeaderText = "", Text = "…", UseColumnTextForButtonValue = true, Width = 36, FlatStyle = FlatStyle.Flat };
+	        var scaling = new DataGridViewTextBoxColumn { Name = "ScalingSummary", DataPropertyName = "ScalingSummary", HeaderText = "Scaling", Width = 190, ReadOnly = true };
+        scaling.DefaultCellStyle.ForeColor = Color.FromArgb(0, 102, 204);
+        var scaleEdit = new DataGridViewButtonColumn { Name = "ScaleEdit", HeaderText = "", Text = "…", UseColumnTextForButtonValue = true, Width = 36, FlatStyle = FlatStyle.Flat, ToolTipText = "Scaling…" };
+        var details   = new DataGridViewButtonColumn { Name = "Details",   HeaderText = "", Text = "…", UseColumnTextForButtonValue = true, Width = 36, FlatStyle = FlatStyle.Flat, ToolTipText = "Point details…" };
         var comment = Col("Comment", 200);
         comment.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
 
-        _grid.Columns.AddRange(Col("Name", 140), Col("Address", 90), Combo("Type", Enums.Types, 110), mark, Combo("Poll", Enums.Polls, 80), comment, details);
+        _grid.Columns.AddRange(Col("Name", 140), Col("Address", 90), Combo("Type", Enums.Types, 110), scaling, scaleEdit, Combo("Poll", Enums.Polls, 80), comment, details);
         _grid.DataSource = _rows;
     }
 
@@ -348,6 +348,14 @@ sealed class MainForm : Form
     void EditDetails(int rowIndex)
     {
         using var d = new PointDetailsDialog(_rows[rowIndex]);
+        if (d.ShowDialog(this) != DialogResult.OK) return;
+        _rows.ResetItem(rowIndex);
+        ValidateProfile();
+    }
+	
+	void EditScaling(int rowIndex)
+    {
+        using var d = new ScalingDialog(_rows[rowIndex]);
         if (d.ShowDialog(this) != DialogResult.OK) return;
         _rows.ResetItem(rowIndex);
         ValidateProfile();

@@ -21,10 +21,9 @@ sealed class PointRow
     public string  Comment   { get => _comment; set => _comment = value ?? ""; }
 	public bool   HasRange  => RawMin.HasValue || RawMax.HasValue || EngMin.HasValue || EngMax.HasValue;
     public bool   HasGain   => Gain.HasValue || Offset.HasValue;
-    public string ScaleMark => HasGain ? "×" : HasRange ? "↔" : "";
     public string ScalingSummary =>
-        HasGain  ? $"× {Gain} {(Offset is double o && o < 0 ? "−" : "+")} {Math.Abs(Offset ?? 0)}" :
-        HasRange ? $"raw {RawMin}..{RawMax} → {EngMin}..{EngMax}" : "no scaling";
+        HasGain  ? $"× {Gain}  {(Offset is double o && o < 0 ? "−" : "+")} {Math.Abs(Offset ?? 0)}" :
+        HasRange ? $"{RawMin}..{RawMax} → {EngMin}..{EngMax}" : "—";
 }
 
 sealed class ProfileModel
